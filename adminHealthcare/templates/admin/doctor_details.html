@@ -1,0 +1,213 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Doctor Details - Healthcare Administration{% endblock %}
+
+{% block content %}
+<div class="doctor-details-page">
+    <div class="page-header">
+        <div class="back-link">
+            <a href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+        <h1>Doctor Details</h1>
+        <div class="verification-status">
+            {% if doctor.is_verified %}
+            <span class="status-badge verified">Verified</span>
+            {% else %}
+            <span class="status-badge pending">Pending Verification</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="content-columns">
+        <div class="left-column">
+            <div class="card doctor-profile">
+                <div class="card-header">
+                    <h2>Doctor Profile</h2>
+                    <span class="doctor-id">ID: {{ doctor.id }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="profile-section">
+                        <h3>Basic Information</h3>
+                        <div class="info-group">
+                            <div class="info-item">
+                                <label>Full Name:</label>
+                                <span>Dr. {{ doctor.name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Email:</label>
+                                <span>{{ doctor.email }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Joined:</label>
+                                <span>{{ doctor.created_at.strftime('%d %b %Y') }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Status:</label>
+                                <span>{{ 'Online' if doctor.is_online else 'Offline' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-section">
+                        <h3>Professional Information</h3>
+                        <div class="info-group">
+                            <div class="info-item">
+                                <label>Specialty:</label>
+                                <span>{{ doctor.specialty }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>License Number:</label>
+                                <span>{{ doctor.license_number }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Qualification:</label>
+                                <span>{{ doctor.qualification }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Experience:</label>
+                                <span>{{ doctor.experience_years }} years</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if doctor.verification_documents %}
+            <div class="card documents-section">
+                <div class="card-header">
+                    <h2>Verification Documents</h2>
+                </div>
+                <div class="card-body">
+                    <div class="document-preview">
+                        {% set file_extension = doctor.verification_documents.split('.')[-1].lower() %}
+                        {% if file_extension in ['jpg', 'jpeg', 'png'] %}
+                            <img src="{{ url_for('static', filename='uploads/qualifications/' + doctor.verification_documents) }}" 
+                                 alt="Verification Document" class="document-image">
+                        {% else %}
+                            <div class="document-file">
+                                <i class="fas fa-file-alt document-icon"></i>
+                                <span class="document-filename">{{ doctor.verification_documents }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="document-actions">
+                        <a href="{{ url_for('download_doctor_document', doctor_id=doctor.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="right-column">
+            <div class="card verification-actions">
+                <div class="card-header">
+                    <h2>Verification Actions</h2>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('verify_doctor', doctor_id=doctor.id) }}" method="POST" id="verificationForm">
+                        <div class="action-selection">
+                            <div class="action-buttons">
+                                <button type="button" class="action-btn verify-btn {{ 'active' if not doctor.is_verified else '' }}" 
+                                        data-action="verify" {{ 'disabled' if doctor.is_verified else '' }}>
+                                    <i class="fas fa-check-circle"></i> Verify Doctor
+                                </button>
+                                <button type="button" class="action-btn unverify-btn {{ 'active' if doctor.is_verified else '' }}" 
+                                        data-action="unverify" {{ 'disabled' if not doctor.is_verified else '' }}>
+                                    <i class="fas fa-times-circle"></i> Unverify Doctor
+                                </button>
+                            </div>
+                            <input type="hidden" name="action" id="actionInput" value="{{ 'unverify' if doctor.is_verified else 'verify' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="notes">Verification Notes:</label>
+                            <textarea id="notes" name="notes" rows="4" class="form-control"
+                                     placeholder="Add notes about this verification decision..."></textarea>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-lg btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {{ 'Unverify Doctor' if doctor.is_verified else 'Approve Verification' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card verification-history">
+                <div class="card-header">
+                    <h2>Verification History</h2>
+                </div>
+                <div class="card-body">
+                    {% if verification_history %}
+                    <div class="timeline">
+                        {% for log in verification_history %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker {{ 'verify' if log.action_type == 'verify' else 'unverify' }}">
+                                <i class="fas {{ 'fa-check' if log.action_type == 'verify' else 'fa-times' }}"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">{{ log.verified_at.strftime('%d %b %Y, %H:%M') }}</div>
+                                <h4 class="timeline-title">
+                                    {% if log.action_type == 'verify' %}
+                                    Doctor was verified
+                                    {% else %}
+                                    Verification was revoked
+                                    {% endif %}
+                                </h4>
+                                <div class="timeline-admin">By: {{ log.admin_name }}</div>
+                                {% if log.verification_notes %}
+                                <div class="timeline-notes">
+                                    <p>{{ log.verification_notes }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-history">
+                        <i class="fas fa-history"></i>
+                        <p>No verification actions have been taken yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Verification action selection
+    const verifyBtn = document.querySelector('.verify-btn');
+    const unverifyBtn = document.querySelector('.unverify-btn');
+    const actionInput = document.getElementById('actionInput');
+    
+    if (verifyBtn && unverifyBtn) {
+        verifyBtn.addEventListener('click', function() {
+            if (!this.disabled) {
+                verifyBtn.classList.add('active');
+                unverifyBtn.classList.remove('active');
+                actionInput.value = 'verify';
+                document.querySelector('button[type="submit"]').textContent = 'Approve Verification';
+            }
+        });
+        
+        unverifyBtn.addEventListener('click', function() {
+            if (!this.disabled) {
+                unverifyBtn.classList.add('active');
+                verifyBtn.classList.remove('active');
+                actionInput.value = 'unverify';
+                document.querySelector('button[type="submit"]').textContent = 'Unverify Doctor';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

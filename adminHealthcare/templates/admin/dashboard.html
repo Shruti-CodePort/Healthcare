@@ -1,0 +1,142 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Dashboard - Healthcare Administration{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <header class="admin-header">
+        <h1>Admin Dashboard</h1>
+        <div class="admin-actions">
+            <span class="admin-badge">Administrator</span>
+        </div>
+    </header>
+    
+    <div class="stats-container">
+        <div class="stat-card"> 
+            <div class="stat-icon">
+                <i class="fas fa-user-md"></i>
+            </div>
+            <div class="stat-details">
+                <h3>Total Doctors</h3>
+                <span class="stat-value">{{ stats.total }}</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon verified">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-details">
+                <h3>Verified Doctors</h3>
+                <span class="stat-value">{{ stats.verified }}</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon pending">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-details">
+                <h3>Pending Verification</h3>
+                <span class="stat-value">{{ stats.pending }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-section">
+        <div class="section-header">
+            <h2>Doctor Verification Management</h2>
+            <div class="filter-controls">
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">All Doctors</option>
+                    <option value="verified">Verified Only</option>
+                    <option value="pending">Pending Only</option>
+                </select>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search doctors...">
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Specialty</th>
+                        <th>Joined Date</th>
+                        <th>Status</th>
+                        <th>Last Verified</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doctor in doctors %}
+                    <tr class="doctor-row {{ 'verified' if doctor.is_verified else 'pending' }}">
+                        <td>{{ doctor.id }}</td>
+                        <td>Dr. {{ doctor.name }}</td>
+                        <td>{{ doctor.specialty }}</td>
+                        <td>{{ doctor.created_at.strftime('%d %b %Y') }}</td>
+                        <td>
+                            {% if doctor.is_verified %}
+                            <span class="status-badge verified">Verified</span>
+                            {% else %}
+                            <span class="status-badge pending">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if doctor.last_verification_date %}
+                            {{ doctor.last_verification_date.strftime('%d %b %Y') }}
+                            {% else %}
+                            Never
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin_view_doctor', doctor_id=doctor.id) }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Status filter functionality
+    const statusFilter = document.getElementById('statusFilter');
+    const searchInput = document.getElementById('searchInput');
+    const doctorRows = document.querySelectorAll('.doctor-row');
+    
+    function filterDoctors() {
+        const filterValue = statusFilter.value;
+        const searchText = searchInput.value.toLowerCase();
+        
+        doctorRows.forEach(row => {
+            const isVerified = row.classList.contains('verified');
+            const shouldShowByStatus = 
+                filterValue === 'all' || 
+                (filterValue === 'verified' && isVerified) || 
+                (filterValue === 'pending' && !isVerified);
+                
+            const doctorName = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const specialty = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+            const shouldShowBySearch = 
+                doctorName.includes(searchText) || 
+                specialty.includes(searchText);
+                
+            if (shouldShowByStatus && shouldShowBySearch) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    statusFilter.addEventListener('change', filterDoctors);
+    searchInput.addEventListener('input', filterDoctors);
+});
+</script>
+{% endblock %}

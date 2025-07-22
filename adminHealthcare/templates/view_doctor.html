@@ -1,0 +1,78 @@
+<!--view_doctor.html-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Doctor Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="doctor-details-container">
+        <header>
+            <a href="{{ url_for('dashboard') }}" class="back-btn">← Back to Dashboard</a>
+            <h1>Doctor Details</h1>
+        </header>
+        
+        <div class="doctor-info">
+            <h2>{{ doctor.name }}</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Email:</label>
+                    <span>{{ doctor.email }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Specialty:</label>
+                    <span>{{ doctor.specialty }}</span>
+                </div>
+                <div class="info-item">
+                    <label>License Number:</label>
+                    <span>{{ doctor.license_number }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Experience:</label>
+                    <span>{{ doctor.experience_years }} years</span>
+                </div>
+                <div class="info-item">
+                    <label>Qualifications:</label>
+                    <p>{{ doctor.qualification }}</p>
+                </div>
+            </div>
+            
+            <div class="documents-section">
+                <h3>Verification Documents</h3>
+                <embed src="{{ url_for('static', filename=doctor.verification_documents) }}" 
+                       type="application/pdf" width="100%" height="600px">
+            </div>
+            
+            <div class="verification-actions">
+                <form method="POST" action="{{ url_for('verify_doctor', doctor_id=doctor.id) }}">
+                    <textarea name="notes" placeholder="Add verification notes..." required></textarea>
+                    {% if not doctor.is_verified %}
+                        <button type="submit" name="action" value="verify" class="verify-btn">
+                            Verify Doctor
+                        </button>
+                    {% else %}
+                        <button type="submit" name="action" value="unverify" class="unverify-btn">
+                            Unverify Doctor
+                        </button>
+                    {% endif %}
+                </form>
+            </div>
+            
+            <div class="verification-history">
+                <h3>Verification History</h3>
+                <div class="history-list">
+                    {% for log in verification_history %}
+                        <div class="history-item">
+                            <p class="action">
+                                {{ log.action_type.title() }}d by {{ log.admin_name }}
+                            </p>
+                            <p class="date">{{ log.verified_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                            <p class="notes">{{ log.verification_notes }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

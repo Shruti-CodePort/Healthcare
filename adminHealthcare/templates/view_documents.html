@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Verification Documents</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .document-container {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .document-preview {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .document-preview iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .document-preview img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .verification-history {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        
+        .history-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 4px;
+        }
+        
+        .verification-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('dashboard') }}" class="back-button">&larr; Back to Dashboard</a>
+        
+        <h1>Doctor Verification Documents</h1>
+        
+        <div class="doctor-info">
+            <h2>{{ doctor.name }}</h2>
+            <p><strong>Email:</strong> {{ doctor.email }}</p>
+            <p><strong>Specialty:</strong> {{ doctor.specialty }}</p>
+            <p><strong>License Number:</strong> {{ doctor.license_number }}</p>
+            <p><strong>Experience:</strong> {{ doctor.experience_years }} years</p>
+            <p><strong>Verification Status:</strong> 
+                <span class="status-badge {{ 'verified' if doctor.is_verified else 'unverified' }}">
+                    {{ 'Verified' if doctor.is_verified else 'Unverified' }}
+                </span>
+            </p>
+        </div>
+        
+        <div class="document-container">
+            <h3>Qualification Documents</h3>
+            
+            {% if doctor.verification_documents %}
+                {% set filename = doctor.verification_documents %}
+                {% set file_ext = filename.split('.')[-1].lower() %}
+                
+                <div class="document-preview">
+                    {% if file_ext in ['jpg', 'jpeg', 'png'] %}
+                        <img src="{{ url_for('view_document', filename=filename) }}" alt="Doctor's document">
+                    {% elif file_ext in ['pdf'] %}
+                        <iframe src="{{ url_for('view_document', filename=filename) }}"></iframe>
+                    {% else %}
+                        <p>Document type not supported for preview. <a href="{{ url_for('view_document', filename=filename) }}" target="_blank">Download Document</a></p>
+                    {% endif %}
+                </div>
+                
+                <a href="{{ url_for('view_document', filename=filename) }}" target="_blank" class="btn btn-primary">View Full Document</a>
+            {% else %}
+                <p>No verification documents uploaded.</p>
+            {% endif %}
+            
+            <div class="verification-form">
+                <h3>Verification Decision</h3>
+                <form id="verificationForm">
+                    <div class="form-group">
+                        <label for="verificationNotes">Verification Notes:</label>
+                        <textarea id="verificationNotes" class="form-control" rows="4" placeholder="Enter your notes regarding verification..."></textarea>
+                    </div>
+                    
+                    <div class="verification-actions">
+                        <button type="button" onclick="verifyDoctor()" class="btn btn-success" {{ 'disabled' if doctor.is_verified else '' }}>
+                            Verify Doctor
+                        </button>
+                        <button type="button" onclick="unverifyDoctor()" class="btn btn-danger" {{ 'disabled' if not doctor.is_verified else '' }}>
+                            Unverify Doctor
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="verification-history">
+            <h3>Verification History</h3>
+            
+            {% if verification_history %}
+                {% for item in verification_history %}
+                    <div class="history-item">
+                        <p><strong>Action:</strong> {{ item.action|title }}</p>
+                        <p><strong>Admin:</strong> {{ item.admin }}</p>
+                        <p><strong>Date:</strong> {{ item.date.strftime('%Y-%m-%d %H:%M') if item.date else 'N/A' }}</p>
+                        <p><strong>Notes:</strong> {{ item.notes or 'No notes provided' }}</p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No verification history available.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        function verifyDoctor() {
+            const notes = document.getElementById('verificationNotes').value;
+            fetch(`/verify_doctor/{{ doctor.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ verification_notes: notes })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        function unverifyDoctor() {
+            const notes = document.getElementById('verificationNotes').value;
+            fetch(`/unverify_doctor/{{ doctor.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ verification_notes: notes })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
