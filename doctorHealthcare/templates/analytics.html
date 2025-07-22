@@ -1,0 +1,328 @@
+{% extends "dashboard-base.html" %}
+
+{% block title %}Analytics - HealthCare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.css">
+<style>
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 8px;
+    }
+    
+    .stats-label {
+        color: #718096;
+        font-size: 0.9rem;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .review-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .rating-stars {
+        color: #f6e05e;
+    }
+</style>
+{% endblock %}
+
+{% block sidebar_content %}
+<ul class="sidebar-menu">
+    <li class="sidebar-item {{ 'active' if active_page == 'dashboard' else '' }}">
+        <a href="{{ url_for('dashboard') }}">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'appointments' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('appointments') if doctor.is_verified else '#' }}">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Appointments</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'patients' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('patients') if doctor.is_verified else '#' }}">
+            <i class="fas fa-users"></i>
+            <span>Patients</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'video_consultation' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('doctor_video_consultation') if doctor.is_verified else '#' }}">
+            <i class="fas fa-video"></i>
+            <span>Video Consultation</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'analytics' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('analytics') if doctor.is_verified else '#' }}">
+            <i class="fas fa-chart-bar"></i>
+            <span>Analytics</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block sidebar_footer %}
+<div class="user-info">
+    <div class="user-avatar">
+        <span class="status-dot {{ 'online' if doctor.is_online else 'offline' }}"></span>
+    </div>
+    <div class="user-details">
+        <h3>Dr. {{ doctor.name }}</h3>
+        <p>{{ doctor.specialty }}</p>
+        <div class="verification-status">
+            {% if doctor.is_verified %}
+            <span class="verification-badge verified">Verified</span>
+            {% else %}
+            <span class="verification-badge pending">Pending Verification</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<a href="{{ url_for('logout') }}" class="logout-btn">
+    <i class="fas fa-sign-out-alt"></i>
+    <span>Logout</span>
+</a>
+{% endblock %}
+
+{% block main_content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Analytics Dashboard</h1>
+    </div>
+
+    <!-- Overview Stats -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ total_patients }}</div>
+                <div class="stats-label">Total Patients</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ appointment_stats.total_appointments }}</div>
+                <div class="stats-label">Total Appointments</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ "%.1f"|format(avg_rating or 0) }}</div>
+                <div class="stats-label">Average Rating</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ "%.0f"|format(avg_duration or 0) }} min</div>
+                <div class="stats-label">Avg. Appointment Duration</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+        <!-- Monthly Trends -->
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h3>Monthly Appointment Trends</h3>
+                <canvas id="monthlyTrendsChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Appointment Status Distribution -->
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h3>Appointment Status Distribution</h3>
+                <canvas id="statusDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Appointment Types -->
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h3>Appointment Types</h3>
+                <canvas id="appointmentTypesChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Busiest Days -->
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h3>Busiest Days of the Week</h3>
+                <canvas id="busiestDaysChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Reviews -->
+    <div class="row">
+        <div class="col-12">
+            <div class="stats-card">
+                <h3>Recent Reviews</h3>
+                {% if recent_reviews %}
+                    {% for review in recent_reviews %}
+                    <div class="review-card">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ review.patient_name }}</strong>
+                            <div class="rating-stars">
+                                {% for i in range(review.rating) %}
+                                <i class="fas fa-star"></i>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <p class="mb-1">{{ review.review_text }}</p>
+                        <small class="text-muted">{{ review.created_at.strftime('%B %d, %Y') }}</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No reviews yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Monthly Trends Chart
+    const monthlyTrendsCtx = document.getElementById('monthlyTrendsChart').getContext('2d');
+    new Chart(monthlyTrendsCtx, {
+        type: 'line',
+        data: {
+            labels: JSON.parse('{{ monthly_trends|map(attribute="month")|list|tojson|safe }}'),
+            datasets: [{
+                label: 'Total Appointments',
+                data: JSON.parse('{{ monthly_trends|map(attribute="total")|list|tojson|safe }}'),
+                borderColor: '#4299e1',
+                tension: 0.1
+            }, {
+                label: 'Completed',
+                data: JSON.parse('{{ monthly_trends|map(attribute="completed")|list|tojson|safe }}'),
+                borderColor: '#48bb78',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // Status Distribution Chart
+    const statusDistributionCtx = document.getElementById('statusDistributionChart').getContext('2d');
+    new Chart(statusDistributionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Cancelled', 'No Show', 'Scheduled'],
+            datasets: [{
+                data: [
+                    parseInt('{{ appointment_stats.completed }}'),
+                    parseInt('{{ appointment_stats.cancelled }}'),
+                    parseInt('{{ appointment_stats.no_show }}'),
+                    parseInt('{{ appointment_stats.scheduled }}')
+                ],
+                backgroundColor: ['#48bb78', '#f56565', '#9f7aea', '#4299e1']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                }
+            }
+        }
+    });
+
+    // Appointment Types Chart
+    const appointmentTypesCtx = document.getElementById('appointmentTypesChart').getContext('2d');
+    new Chart(appointmentTypesCtx, {
+        type: 'pie',
+        data: {
+            labels: JSON.parse('{{ appointment_types|map(attribute="appointment_type")|list|tojson|safe }}'),
+            datasets: [{
+                data: JSON.parse('{{ appointment_types|map(attribute="count")|list|tojson|safe }}'),
+                backgroundColor: ['#4299e1', '#48bb78']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                }
+            }
+        }
+    });
+
+    // Busiest Days Chart
+    const busiestDaysCtx = document.getElementById('busiestDaysChart').getContext('2d');
+    new Chart(busiestDaysCtx, {
+        type: 'bar',
+        data: {
+            labels: JSON.parse('{{ busiest_days|map(attribute="day_of_week")|list|tojson|safe }}'),
+            datasets: [{
+                label: 'Number of Appointments',
+                data: JSON.parse('{{ busiest_days|map(attribute="count")|list|tojson|safe }}'),
+                backgroundColor: '#4299e1'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

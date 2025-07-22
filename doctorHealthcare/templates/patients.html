@@ -1,0 +1,1507 @@
+{% extends "dashboard-base.html" %}
+
+{% block title %}Patients - Doctor Dashboard - HealthCare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/patients.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/payment-modals.css') }}">
+<style>
+    /* Ensure modal is on top */
+    .modal {
+        z-index: 1050 !important;
+    }
+    .modal-backdrop {
+        z-index: 1040 !important;
+    }
+    
+    /* Ensure the modal backdrop covers everything */
+    .modal-backdrop {
+        opacity: 0.5;
+    }
+    
+    /* Fix for modals opening behind other content */
+    body.modal-open {
+        overflow: hidden;
+        padding-right: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block sidebar_content %}
+<ul class="sidebar-menu">
+    <li class="sidebar-item {{ 'active' if active_page == 'dashboard' else '' }}">
+        <a href="{{ url_for('dashboard') }}">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'appointments' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('appointments') if doctor.is_verified else '#' }}">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Appointments</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'patients' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('patients') if doctor.is_verified else '#' }}">
+            <i class="fas fa-users"></i>
+            <span>Patients</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'video_consultation' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('doctor_video_consultation') if doctor.is_verified else '#' }}">
+            <i class="fas fa-video"></i>
+            <span>Video Consultation</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'analytics' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('analytics') if doctor.is_verified else '#' }}">
+            <i class="fas fa-chart-bar"></i>
+            <span>Analytics</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block sidebar_footer %}
+<div class="user-info">
+    <div class="user-avatar">
+        <span class="status-dot {{ 'online' if doctor.is_online else 'offline' }}"></span>
+    </div>
+    <div class="user-details">
+        <h3>Dr. {{ doctor.name }}</h3>
+        <p>{{ doctor.specialty }}</p>
+        <div class="verification-status">
+            {% if doctor.is_verified %}
+            <span class="verification-badge verified">Verified</span>
+            {% else %}
+            <span class="verification-badge pending">Pending Verification</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<a href="{{ url_for('logout') }}" class="logout-btn">
+    <i class="fas fa-sign-out-alt"></i>
+    <span>Logout</span>
+</a>
+{% endblock %}
+
+{% block main_content %}
+<div class="patients-container">
+    <div class="patients-header">
+        <h1>My Patients</h1>
+        <div class="search-filter">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="patientSearch" placeholder="Search patients...">
+            </div>
+            <select id="statusFilter" class="filter-dropdown">
+                <option value="all" {% if current_filter == 'all' %}selected{% endif %}>All Patients</option>
+                <option value="recent" {% if current_filter == 'recent' %}selected{% endif %}>Recent Appointments</option>
+                <option value="upcoming" {% if current_filter == 'upcoming' %}selected{% endif %}>Upcoming Appointments</option>
+            </select>
+        </div>
+    </div>
+
+    {% if patients %}
+    <div class="patient-list">
+        <div class="patient-list-header">
+            <span class="col-name">Patient Name</span>
+            <span class="col-contact">Contact</span>
+            <span class="col-dob">Date of Birth</span>
+            <span class="col-last-visit">Last Visit</span>
+            <span class="col-next-visit">Next Appointment</span>
+            <span class="col-action">Actions</span>
+        </div>
+        
+        <div class="patient-list-body">
+            {% for patient in patients %}
+            <div class="patient-item" data-patient-id="{{ patient.id }}">
+                <div class="col-name">
+                    <div class="patient-avatar">
+                        <span>{{ patient.name[:1] }}</span>
+                    </div>
+                    <div class="patient-info">
+                        <h3>{{ patient.name }}</h3>
+                        <small>ID: PAT-{{ patient.id }}</small>
+                    </div>
+                </div>
+                <div class="col-contact">{{ patient.contact_number }}</div>
+                <div class="col-dob">{{ patient.date_of_birth if patient.date_of_birth else 'Not provided' }}</div>
+                <div class="col-last-visit">
+                    {% if patient.last_appointment %}
+                    <div class="last-appointment">
+                        <span class="appointment-date">{{ patient.last_appointment.appointment_date }}</span>
+                        {% if patient.last_appointment.appointment_time %}
+                        <span class="appointment-time">{{ patient.last_appointment.appointment_time }}</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    No previous visits
+                    {% endif %}
+                </div>
+                <div class="col-next-visit">
+                    {% if patient.next_appointment %}
+                    <div class="next-appointment">
+                        <span class="appointment-date">{{ patient.next_appointment.appointment_date }}</span>
+                        {% if patient.next_appointment.appointment_time %}
+                        <span class="appointment-time">{{ patient.next_appointment.appointment_time }}</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    No upcoming appointments
+                    {% endif %}
+                </div>
+                <div class="col-action">
+                    <button class="view-details-btn" data-patient-id="{{ patient.id }}">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination is defined and pagination %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('patients', page=pagination.prev_num, filter=current_filter) }}" class="page-link">&laquo; Previous</a>
+        {% endif %}
+        
+        <!-- Display page numbers -->
+        {% for page_num in range(1, pagination.total_pages + 1) %}
+            {% if page_num == pagination.page %}
+                <span class="page-link active">{{ page_num }}</span>
+            {% else %}
+                {% if (page_num <= 3) or (page_num >= pagination.total_pages - 2) or ((page_num >= pagination.page - 1) and (page_num <= pagination.page + 1)) %}
+                    <a href="{{ url_for('patients', page=page_num, filter=current_filter) }}" class="page-link">{{ page_num }}</a>
+                {% elif (page_num == 4 and pagination.page > 4) or (page_num == pagination.total_pages - 3 and pagination.page < pagination.total_pages - 3) %}
+                    <span class="ellipsis">...</span>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+            <a href="{{ url_for('patients', page=pagination.next_num, filter=current_filter) }}" class="page-link">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-patients">
+        <div class="empty-state">
+            <i class="fas fa-user-injured"></i>
+            <h2>No patients found</h2>
+            <p>You don't have any patients assigned to you yet.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Patient Details Modal -->
+<div id="patientDetailsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Patient Details</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="patient-profile">
+                <div class="patient-basic-info">
+                    <div class="patient-avatar large">
+                        <span id="patientInitial"></span>
+                    </div>
+                    <div>
+                        <h3 id="modalPatientName"></h3>
+                        <p id="modalPatientId"></p>
+                        <p id="modalPatientContact"></p>
+                        <p id="modalPatientDob"></p>
+                    </div>
+                </div>
+                
+                <div class="tab-container">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="health">Health Information</button>
+                        <button class="tab-btn" data-tab="appointments">Appointments</button>
+                        <button class="tab-btn" data-tab="documents">Documents</button>
+                        <button class="tab-btn" data-tab="payments">Payment Status</button>
+                    </div>
+                    
+                    <div class="tab-content">
+                        <div id="health" class="tab-pane active">
+                            <div class="health-details">
+                                <div class="detail-section">
+                                    <h4>Previous Illnesses</h4>
+                                    <p id="previousIllnesses"></p>
+                                </div>
+                                <div class="detail-section">
+                                    <h4>Current Medications</h4>
+                                    <p id="currentMedications"></p>
+                                </div>
+                                <div class="detail-section">
+                                    <h4>Known Allergies</h4>
+                                    <p id="knownAllergies"></p>
+                                </div>
+                                <div class="detail-section">
+                                    <h4>Previous Surgeries</h4>
+                                    <p id="previousSurgeries"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="appointments" class="tab-pane">
+                            <div class="appointment-history">
+                                <h4>Appointment History</h4>
+                                <div id="appointmentsList">
+                                    <!-- Appointments will be loaded here via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="payments" class="tab-pane">
+                            <div class="payment-status">
+                                <h4>Payment Information</h4>
+                                <div id="paymentInfo">
+                                    <div class="payment-history">
+                                        <h5>Payment History</h5>
+                                        <div id="paymentHistoryList">
+                                            <!-- Payment history will be loaded here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="documents" class="tab-pane">
+                            <div class="patient-documents">
+                                <h4>Surgery Documents</h4>
+                                <div id="surgeryDocumentsList">
+                                    <!-- Surgery documents will be loaded here via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token Meta -->
+<meta name="csrf-token" content="{{ csrf_token }}">
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Patient search functionality
+    const searchInput = document.getElementById('patientSearch');
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const patientItems = document.querySelectorAll('.patient-item');
+        
+        patientItems.forEach(item => {
+            const patientName = item.querySelector('.patient-info h3').textContent.toLowerCase();
+            if (patientName.includes(searchTerm)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
+    // Status filter functionality
+    const statusFilter = document.getElementById('statusFilter');
+    statusFilter.addEventListener('change', function() {
+        window.location.href = "{{ url_for('patients') }}?filter=" + this.value;
+    });
+    
+    // Patient details modal functionality
+    const modal = document.getElementById('patientDetailsModal');
+    const closeBtn = document.querySelector('.close');
+    const viewDetailsBtns = document.querySelectorAll('.view-details-btn');
+    
+    // Close modal when clicking X
+    closeBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Open modal and load patient details
+    viewDetailsBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const patientId = this.getAttribute('data-patient-id');
+            fetchPatientDetails(patientId);
+            modal.style.display = 'block';
+        });
+    });
+    
+    // Tab functionality
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            
+            // Remove active class from all buttons and panes
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabPanes.forEach(p => p.classList.remove('active'));
+            
+            // Add active class to current button and pane
+            this.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+    
+    // Fetch patient details from API
+    function fetchPatientDetails(patientId) {
+    fetch(`/api/patients/${patientId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Populate modal with patient data
+            document.getElementById('patientInitial').textContent = data.name.charAt(0);
+            document.getElementById('modalPatientName').textContent = data.name;
+            document.getElementById('modalPatientId').textContent = `Patient ID: PAT-${data.id}`;
+            document.getElementById('modalPatientContact').textContent = `Contact: ${data.contact_number}`;
+            document.getElementById('modalPatientDob').textContent = `Date of Birth: ${data.date_of_birth}`;
+            
+            // Health information
+            document.getElementById('previousIllnesses').textContent = data.medical_history.previous_illnesses || 'None reported';
+            document.getElementById('currentMedications').textContent = data.medical_history.current_medications || 'None reported';
+            document.getElementById('knownAllergies').textContent = data.medical_history.known_allergies || 'None reported';
+            document.getElementById('previousSurgeries').textContent = data.medical_history.previous_surgeries || 'None reported';
+            
+            // Appointments
+            const appointmentsList = document.getElementById('appointmentsList');
+            appointmentsList.innerHTML = '';
+            
+            if (data.appointments && data.appointments.length > 0) {
+                // Check for existing payment requests for all appointments
+                fetch(`/api/payment-requests/${patientId}`)
+                    .then(resp => resp.json())
+                    .then(paymentData => {
+                        // Create a mapping of appointment IDs to payment requests
+                        const paymentRequestsMap = {};
+                        if (paymentData.success && paymentData.payment_requests) {
+                            paymentData.payment_requests.forEach(pr => {
+                                paymentRequestsMap[pr.appointment_id] = pr;
+                            });
+                        }
+                        
+                        // Now create appointment items with payment request status consideration
+                        data.appointments.forEach(appointment => {
+                            const appointmentItem = document.createElement('div');
+                            appointmentItem.className = 'appointment-item';
+                            
+                            // Create a more user-friendly display name for pending_approval
+                            let displayStatus = appointment.status;
+                            if (appointment.status === 'pending_approval') {
+                                displayStatus = 'Pending Approval';
+                            }
+                            
+                            appointmentItem.innerHTML = `
+                                <div class="appointment-date">
+                                    <span class="date">${appointment.appointment_date}</span>
+                                    <span class="time">${appointment.appointment_time}</span>
+                                </div>
+                                <div class="appointment-status">
+                                    <span class="status ${appointment.status}">${displayStatus}</span>
+                                </div>
+                            `;
+                            
+                            // Add approve/reject buttons for pending appointments
+                            if (appointment.status === 'pending_approval') {
+                                const actionDiv = document.createElement('div');
+                                actionDiv.className = 'appointment-actions';
+                                actionDiv.innerHTML = `
+                                    <button class="btn small primary approve-btn" data-appointment-id="${appointment.id}">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                    <button class="btn small danger reject-btn" data-appointment-id="${appointment.id}">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                `;
+                                appointmentItem.appendChild(actionDiv);
+                                
+                                // Add event listeners for approve/reject buttons
+                                setTimeout(() => {
+                                    const approveBtn = appointmentItem.querySelector('.approve-btn');
+                                    const rejectBtn = appointmentItem.querySelector('.reject-btn');
+                                    
+                                    approveBtn.addEventListener('click', function() {
+                                        updateAppointmentStatus(this.getAttribute('data-appointment-id'), 'scheduled', patientId);
+                                    });
+                                    
+                                    rejectBtn.addEventListener('click', function() {
+                                        updateAppointmentStatus(this.getAttribute('data-appointment-id'), 'cancelled', patientId);
+                                    });
+                                }, 0);
+                            } else if (appointment.status === 'scheduled') {
+                                // Add fee request button for approved/scheduled appointments
+                                const actionDiv = document.createElement('div');
+                                actionDiv.className = 'appointment-actions';
+                                
+                                // Get payment request for this appointment if it exists
+                                const paymentRequest = paymentRequestsMap[appointment.id];
+                                
+                                if (paymentRequest) {
+                                    // Different button states based on payment status
+                                    switch(paymentRequest.status) {
+                                        case 'pending':
+                                            actionDiv.innerHTML = `
+                                                <button class="btn small primary fee-request-btn disabled" data-appointment-id="${appointment.id}" disabled>
+                                                    <i class="fas fa-rupee-sign"></i> Request Sent
+                                                </button>
+                                            `;
+                                            break;
+                                        case 'paid':
+                                            if (paymentRequest.is_verified) {
+                                                // Check if it's within the appointment time window
+                                                const appointmentDateTime = new Date(`${appointment.appointment_date}T${appointment.appointment_time}`);
+                                                const now = new Date();
+                                                
+                                                // Allow video consultation 10 minutes before and 30 minutes after appointment time
+                                                const startWindow = new Date(appointmentDateTime);
+                                                startWindow.setMinutes(startWindow.getMinutes() - 10);
+                                                
+                                                const endWindow = new Date(appointmentDateTime);
+                                                endWindow.setMinutes(endWindow.getMinutes() + 30);
+                                                
+                                                if (now >= startWindow && now <= endWindow) {
+                                                    actionDiv.innerHTML = `
+                                                        <button class="btn small success video-consult-btn" data-appointment-id="${appointment.id}">
+                                                            <i class="fas fa-video"></i> Start Consultation
+                                                        </button>
+                                                    `;
+                                                } else {
+                                                    actionDiv.innerHTML = `
+                                                        <button class="btn small success disabled" disabled>
+                                                            <i class="fas fa-check-circle"></i> Payment Verified
+                                                        </button>
+                                                    `;
+                                                }
+                                            } else {
+                                                actionDiv.innerHTML = `
+                                                    <button class="btn small primary view-proof-btn" 
+                                                        data-payment-id="${paymentRequest.id}" 
+                                                        data-appointment-id="${appointment.id}">
+                                                        <i class="fas fa-eye"></i> View Proof
+                                                    </button>
+                                                `;
+                                            }
+                                            break;
+                                        case 'failed':
+                                        case 'cancelled':
+                                            actionDiv.innerHTML = `
+                                                <button class="btn small primary fee-request-btn" data-appointment-id="${appointment.id}" data-patient-id="${patientId}">
+                                                    <i class="fas fa-rupee-sign"></i> Request Fee
+                                                </button>
+                                            `;
+                                            break;
+                                        default:
+                                            actionDiv.innerHTML = `
+                                                <button class="btn small primary fee-request-btn" data-appointment-id="${appointment.id}" data-patient-id="${patientId}">
+                                                    <i class="fas fa-rupee-sign"></i> Request Fee
+                                                </button>
+                                            `;
+                                    }
+                                } else {
+                                    actionDiv.innerHTML = `
+                                        <button class="btn small primary fee-request-btn" data-appointment-id="${appointment.id}" data-patient-id="${patientId}">
+                                            <i class="fas fa-rupee-sign"></i> Request Fee
+                                        </button>
+                                    `;
+                                }
+                                
+                                appointmentItem.appendChild(actionDiv);
+                                
+                                // Add event listeners for the buttons
+                                setTimeout(() => {
+                                    // Fee request button
+                                    const feeRequestBtn = appointmentItem.querySelector('.fee-request-btn');
+                                    if (feeRequestBtn && !feeRequestBtn.disabled) {
+                                        feeRequestBtn.addEventListener('click', function() {
+                                            const appointmentId = this.getAttribute('data-appointment-id');
+                                            const patientId = this.getAttribute('data-patient-id');
+                                            showFeeRequestModal(patientId, appointmentId);
+                                        });
+                                    }
+                                    
+                                    // View proof button
+                                    const viewProofBtn = appointmentItem.querySelector('.view-proof-btn');
+                                    if (viewProofBtn) {
+                                        viewProofBtn.addEventListener('click', function() {
+                                            const paymentId = this.getAttribute('data-payment-id');
+                                            const appointmentId = this.getAttribute('data-appointment-id');
+                                            showPaymentProofModal(paymentId, appointmentId);
+                                        });
+                                    }
+                                    
+                                    // Video consultation button
+                                    const videoConsultBtn = appointmentItem.querySelector('.video-consult-btn');
+                                    if (videoConsultBtn) {
+                                        videoConsultBtn.addEventListener('click', function() {
+                                            alert('Video consultation functionality will be implemented later.');
+                                            // The actual implementation would be:
+                                            // startVideoConsultation(appointmentId);
+                                        });
+                                    }
+                                }, 0);
+                            }
+                            
+                            appointmentsList.appendChild(appointmentItem);
+                        });
+                        
+                        // Also update payment information in the UI
+                        updatePaymentInformation(paymentData);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching payment requests:', error);
+                        // Fall back to rendering without payment request data
+                        renderAppointmentsWithoutPaymentData(data.appointments, patientId, appointmentsList);
+                    });
+            } else {
+                appointmentsList.innerHTML = '<p class="no-data">No appointments found</p>';
+            }
+            
+            // Surgery documents
+            const surgeryDocumentsList = document.getElementById('surgeryDocumentsList');
+            surgeryDocumentsList.innerHTML = '';
+            
+            if (data.document_info && data.document_info.has_document) {
+                const documentTable = document.createElement('table');
+                documentTable.className = 'documents-table';
+                documentTable.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>${data.document_info.file_name}</td>
+                            <td>
+                                <a href="/download-surgery-document/${data.id}" class="btn small primary">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                                <a href="/view-surgery-document/${data.id}" target="_blank" class="btn small secondary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                `;
+                surgeryDocumentsList.appendChild(documentTable);
+            } else {
+                surgeryDocumentsList.innerHTML = '<p class="no-data">No surgery documents uploaded</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching patient details:', error);
+            alert('Failed to load patient details. Please try again.');
+        });
+}
+
+function updatePaymentInformation(paymentData) {
+    if (!paymentData.success || !paymentData.payment_requests || paymentData.payment_requests.length === 0) {
+        
+        document.getElementById('paymentHistoryList').innerHTML = '<p class="no-data">No payment records found</p>';
+        return;
+    }
+    
+    // Sort by request date (newest first)
+    const paymentRequests = paymentData.payment_requests.sort((a, b) => 
+        new Date(b.request_date) - new Date(a.request_date));
+
+    // Create a Set to track displayed payment IDs to prevent duplicates
+    const displayedPayments = new Set();
+    
+    // Generate payment history list if element exists
+    const paymentHistoryList = document.getElementById('paymentHistoryList');
+    if (paymentHistoryList) {
+        let html = '<div class="payment-list">';
+        
+        paymentRequests.forEach(payment => {
+
+            if (displayedPayments.has(payment.id)) {
+                return;
+            }
+            
+            // Add to tracked payments
+            displayedPayments.add(payment.id);
+
+            const requestDate = formatDateWithTime(payment.request_date);
+            const paymentDate = payment.payment_date ? formatDateWithTime(payment.payment_date) : 'N/A';
+            
+            let statusBadge = '';
+            let actionButtons = '';
+            
+            switch(payment.status) {
+                case 'pending':
+                    statusBadge = '<span class="badge bg-warning text-dark">Pending</span>';
+                    break;
+                case 'paid':
+                    if (payment.is_verified) {
+                        statusBadge = '<span class="badge bg-success">Verified</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-info">Paid (Unverified)</span>';
+                        // Add verify button for unverified payments
+                        actionButtons = `
+                            <button class="btn small primary view-proof-btn" 
+                                data-payment-id="${payment.id}" 
+                                data-appointment-id="${payment.appointment_id}">
+                                <i class="fas fa-eye"></i> View Proof
+                            </button>
+                        `;
+                    }
+                    break;
+                case 'failed':
+                    statusBadge = '<span class="badge bg-danger">Failed</span>';
+                    break;
+                case 'cancelled':
+                    statusBadge = '<span class="badge bg-secondary">Cancelled</span>';
+                    break;
+            }
+            
+            html += `
+                <div class="payment-item">
+                    <div class="payment-details">
+                        <p><strong>Amount:</strong> ₹${payment.amount}</p>
+                        <p><strong>Request Date:</strong> ${requestDate}</p>
+                        <p><strong>Payment Date:</strong> ${paymentDate}</p>
+                        <p><strong>Status:</strong> ${statusBadge}</p>
+                        ${payment.transaction_id ? `<p><strong>Transaction ID:</strong> ${payment.transaction_id}</p>` : ''}
+                    </div>
+                    <div class="payment-actions">
+                        ${actionButtons}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        paymentHistoryList.innerHTML = html;
+        
+        // Attach event listeners to the view proof buttons
+        document.querySelectorAll('.view-proof-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const paymentId = this.getAttribute('data-payment-id');
+                const appointmentId = this.getAttribute('data-appointment-id');
+                showPaymentProofModal(paymentId, appointmentId);
+            });
+        });
+    }
+}
+
+function formatDateWithTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    const date = new Date(dateString);
+    const formattedDate = date.toLocaleDateString();
+    
+    // Format time with AM/PM
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    
+    return `${formattedDate}, ${hours}:${minutes} ${ampm}`;
+}
+
+function renderAppointmentsWithoutPaymentData(appointments, patientId, appointmentsList) {
+    appointments.forEach(appointment => {
+        const appointmentItem = document.createElement('div');
+        appointmentItem.className = 'appointment-item';
+        
+        // Create a more user-friendly display name for pending_approval
+        let displayStatus = appointment.status;
+        if (appointment.status === 'pending_approval') {
+            displayStatus = 'Pending Approval';
+        }
+        
+        appointmentItem.innerHTML = `
+            <div class="appointment-date">
+                <span class="date">${appointment.appointment_date}</span>
+                <span class="time">${appointment.appointment_time}</span>
+            </div>
+            <div class="appointment-status">
+                <span class="status ${appointment.status}">${displayStatus}</span>
+            </div>
+        `;
+        
+        // Add approve/reject buttons for pending appointments
+        if (appointment.status === 'pending_approval') {
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'appointment-actions';
+            actionDiv.innerHTML = `
+                <button class="btn small primary approve-btn" data-appointment-id="${appointment.id}">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn small danger reject-btn" data-appointment-id="${appointment.id}">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+            `;
+            appointmentItem.appendChild(actionDiv);
+            
+            // Add event listeners for approve/reject buttons
+            setTimeout(() => {
+                const approveBtn = appointmentItem.querySelector('.approve-btn');
+                const rejectBtn = appointmentItem.querySelector('.reject-btn');
+                
+                approveBtn.addEventListener('click', function() {
+                    updateAppointmentStatus(this.getAttribute('data-appointment-id'), 'scheduled', patientId);
+                });
+                
+                rejectBtn.addEventListener('click', function() {
+                    updateAppointmentStatus(this.getAttribute('data-appointment-id'), 'cancelled', patientId);
+                });
+            }, 0);
+        } else if (appointment.status === 'scheduled') {
+            // Add fee request button for approved/scheduled appointments
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'appointment-actions';
+            actionDiv.innerHTML = `
+                <button class="btn small primary fee-request-btn" data-appointment-id="${appointment.id}" data-patient-id="${patientId}">
+                    <i class="fas fa-rupee-sign"></i> Request Fee
+                </button>
+            `;
+            appointmentItem.appendChild(actionDiv);
+            
+            // Add event listener for fee request button
+            setTimeout(() => {
+                const feeRequestBtn = appointmentItem.querySelector('.fee-request-btn');
+                feeRequestBtn.addEventListener('click', function() {
+                    const appointmentId = this.getAttribute('data-appointment-id');
+                    const patientId = this.getAttribute('data-patient-id');
+                    showFeeRequestModal(patientId, appointmentId);
+                });
+            }, 0);
+        }
+        
+        appointmentsList.appendChild(appointmentItem);
+    });
+}
+
+function loadPatientPayments(patientId) {
+    fetch(`/api/payment-requests/${patientId}`)
+        .then(response => response.json())
+        .then(data => {
+            updatePaymentInformation(data);
+            
+            // Update appointment buttons if the patient details are currently displayed
+            if (typeof fetchPatientDetails === 'function') {
+                fetchPatientDetails(patientId);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading payment data:', error);
+            document.getElementById('paymentHistoryList').innerHTML = 
+                '<p class="error">Failed to load payment data. Please try again later.</p>';
+        });
+}
+
+function showPaymentProofModal(paymentId, appointmentId) {
+    // Fetch the payment details first
+    fetch(`/api/payment-details/${paymentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Failed to load payment details: ' + (data.error || 'Unknown error'));
+                return;
+            }
+            
+            // Create or get the modal
+            let paymentProofModal = document.getElementById('paymentProofModal');
+            if (!paymentProofModal) {
+                const modalHtml = `
+                    <div class="modal fade" id="paymentProofModal" tabindex="-1" aria-labelledby="paymentProofModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="paymentProofModalLabel">Payment Verification</h5>
+                                    <button type="button" class="btn-close" id="closeModalButton" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="payment-info mb-3">
+                                        <p><strong>Amount:</strong> <span id="modal-amount"></span></p>
+                                        <p><strong>Transaction ID:</strong> <span id="modal-transaction-id"></span></p>
+                                        <p><strong>Payment Date:</strong> <span id="modal-payment-date"></span></p>
+                                    </div>
+                                    
+                                    <div class="payment-proof-container text-center mb-4">
+                                        <h6>Payment Proof</h6>
+                                        <div id="proof-image-container" class="mt-2"></div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" id="closeModalBtn">Close</button>
+                                    <button type="button" class="btn btn-danger" id="reject-payment-btn">Reject Payment</button>
+                                    <button type="button" class="btn btn-success" id="verify-payment-btn">Verify Payment</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const modalDiv = document.createElement('div');
+                modalDiv.innerHTML = modalHtml;
+                document.body.appendChild(modalDiv.firstElementChild);
+                paymentProofModal = document.getElementById('paymentProofModal');
+            }
+            
+            // Now populate the modal fields
+            const modalAmount = document.querySelector('#paymentProofModal #modal-amount');
+            const modalTransactionId = document.querySelector('#paymentProofModal #modal-transaction-id');
+            const modalPaymentDate = document.querySelector('#paymentProofModal #modal-payment-date');
+            const proofContainer = document.querySelector('#paymentProofModal #proof-image-container');
+            
+            if (!modalAmount || !modalTransactionId || !modalPaymentDate || !proofContainer) {
+                alert("Error: Modal elements not found. Please refresh and try again.");
+                return;
+            }
+            
+            // Populate the modal
+            modalAmount.textContent = `₹${data.payment.amount}`;
+            modalTransactionId.textContent = data.payment.transaction_id || 'N/A';
+            modalPaymentDate.textContent = 
+                data.payment.payment_date ? new Date(data.payment.payment_date).toLocaleString() : 'N/A';
+            
+            // Display the payment proof image or PDF - using the direct route
+            proofContainer.innerHTML = '';
+            
+            if (data.payment.payment_proof) {
+                const fileExt = data.payment.payment_proof.split('.').pop().toLowerCase();
+                
+                if (['jpg', 'jpeg', 'png'].includes(fileExt)) {
+                    proofContainer.innerHTML = `
+                        <img src="/payment_proofs/${data.payment.payment_proof}" class="img-fluid payment-proof-img" alt="Payment Proof">
+                    `;
+                } else if (fileExt === 'pdf') {
+                    proofContainer.innerHTML = `
+                        <embed src="/payment_proofs/${data.payment.payment_proof}" type="application/pdf" width="100%" height="500px">
+                        <p><a href="/payment_proofs/${data.payment.payment_proof}" target="_blank" class="btn btn-primary mt-2">
+                            Open PDF in New Tab
+                        </a></p>
+                    `;
+                } else {
+                    proofContainer.innerHTML = '<p>Unsupported file format</p>';
+                }
+            } else {
+                proofContainer.innerHTML = '<p>No payment proof available</p>';
+            }
+            
+            // Set up event listeners for all buttons including close button
+            const verifyBtn = document.querySelector('#paymentProofModal #verify-payment-btn');
+            const rejectBtn = document.querySelector('#paymentProofModal #reject-payment-btn');
+            const closeBtn = document.querySelector('#paymentProofModal #closeModalBtn');
+            const closeXBtn = document.querySelector('#paymentProofModal #closeModalButton');
+            
+            if (verifyBtn) {
+                verifyBtn.onclick = function() {
+                    verifyPayment(paymentId, appointmentId, true);
+                };
+            }
+            
+            if (rejectBtn) {
+                rejectBtn.onclick = function() {
+                    if (confirm("Are you sure you want to reject this payment?")) {
+                        verifyPayment(paymentId, appointmentId, false);
+                    }
+                };
+            }
+            
+            // Add manual close functionality for both close buttons
+            if (closeBtn) {
+                closeBtn.onclick = function() {
+                    closePaymentModal();
+                };
+            }
+            
+            if (closeXBtn) {
+                closeXBtn.onclick = function() {
+                    closePaymentModal();
+                };
+            }
+            
+            // Show the modal with Bootstrap
+            try {
+                // Clean up any previous modal instances first
+                const existingBackdrops = document.querySelectorAll('.modal-backdrop');
+                existingBackdrops.forEach(backdrop => backdrop.remove());
+                
+                // Ensure modal state is reset
+                paymentProofModal.classList.remove('show');
+                paymentProofModal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                
+                // Show with Bootstrap
+                const bsModal = new bootstrap.Modal(paymentProofModal);
+                bsModal.show();
+            } catch (err) {
+                console.error("Bootstrap modal error:", err);
+                // Manual fallback
+                paymentProofModal.style.display = 'block';
+                paymentProofModal.classList.add('show');
+                document.body.classList.add('modal-open');
+                
+                // Create backdrop manually
+                if (!document.querySelector('.modal-backdrop')) {
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching payment details:', error);
+            alert('Failed to load payment details. Please try again.');
+        });
+}
+
+function closePaymentModal() {
+    try {
+        // Try using Bootstrap's modal instance first
+        const modalElement = document.getElementById('paymentProofModal');
+        const bsModalInstance = bootstrap.Modal.getInstance(modalElement);
+        
+        if (bsModalInstance) {
+            bsModalInstance.hide();
+        } else {
+            // Manual close if Bootstrap instance not available
+            modalElement.style.display = 'none';
+            modalElement.classList.remove('show');
+            document.body.classList.remove('modal-open');
+            
+            // Remove backdrop
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+        }
+    } catch (error) {
+        console.error('Error closing modal:', error);
+        
+        // Force close as fallback
+        const modalElement = document.getElementById('paymentProofModal');
+        if (modalElement) {
+            modalElement.style.display = 'none';
+        }
+        
+        document.body.classList.remove('modal-open');
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+    }
+}
+
+function verifyPayment(paymentId, appointmentId, isVerified) {
+    if (!paymentId || !appointmentId) {
+        console.error('Missing required parameters for payment verification');
+        alert('Error: Missing payment or appointment information');
+        return;
+    }
+    
+    // Show loading indicator
+    const verifyBtn = document.querySelector('#verify-payment-btn');
+    const rejectBtn = document.querySelector('#reject-payment-btn');
+    
+    if (verifyBtn) verifyBtn.disabled = true;
+    if (rejectBtn) rejectBtn.disabled = true;
+    
+    fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            payment_id: paymentId,
+            appointment_id: appointmentId,
+            is_verified: isVerified
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Close the modal using our dedicated function
+            closePaymentModal();
+            
+            // Show success message
+            alert(isVerified ? 'Payment verified successfully!' : 'Payment rejected successfully!');
+            
+            // Reload data
+            const patientIdElement = document.querySelector('[data-patient-id]');
+            const patientId = patientIdElement ? patientIdElement.getAttribute('data-patient-id') : null;
+            
+            if (patientId) {
+                // Check if functions exist before calling them
+                if (typeof loadPatientPayments === 'function') {
+                    loadPatientPayments(patientId);
+                }else {
+                    // If we can't find the fetchPatientDetails function, just reload the page
+                    window.location.reload();
+                }
+            } else {
+                // If we can't find the patient ID, just reload the page
+                window.location.reload();
+            }
+            
+            // Enable video consultation button if payment is verified
+            if (isVerified && typeof updateVideoConsultationButton === 'function') {
+                updateVideoConsultationButton(appointmentId);
+            }
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
+            
+            // Re-enable buttons
+            if (verifyBtn) verifyBtn.disabled = false;
+            if (rejectBtn) rejectBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error verifying payment:', error);
+        alert('Failed to verify payment. Please try again.');
+        
+        // Re-enable buttons
+        if (verifyBtn) verifyBtn.disabled = false;
+        if (rejectBtn) rejectBtn.disabled = false;
+    });
+}
+
+function updateVideoConsultationButton(appointmentId) {
+    // This function is now handled directly in fetchPatientDetails
+    // when rendering each appointment
+    
+    // If this function is called outside of the fetchPatientDetails context,
+    // we can fetch the appointment details and update the button if it exists
+    fetch(`/api/appointment/${appointmentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) return;
+            
+            const appointment = data.appointment;
+            const appointmentDateTime = new Date(`${appointment.appointment_date}T${appointment.appointment_time}`);
+            const now = new Date();
+            
+            // Allow video consultation 10 minutes before and 30 minutes after appointment time
+            const startWindow = new Date(appointmentDateTime);
+            startWindow.setMinutes(startWindow.getMinutes() - 10);
+            
+            const endWindow = new Date(appointmentDateTime);
+            endWindow.setMinutes(endWindow.getMinutes() + 30);
+            
+            // Find this appointment in the DOM
+            const appointmentItems = document.querySelectorAll('.appointment-item');
+            appointmentItems.forEach(item => {
+                const actionBtns = item.querySelector('.appointment-actions');
+                if (!actionBtns) return;
+                
+                const btnWithAppointmentId = actionBtns.querySelector(`[data-appointment-id="${appointmentId}"]`);
+                if (!btnWithAppointmentId) return;
+                
+                // This is the appointment we're looking for
+                if (now >= startWindow && now <= endWindow) {
+                    // It's within the consultation window
+                    const videoBtn = document.createElement('button');
+                    videoBtn.className = 'btn small success video-consult-btn';
+                    videoBtn.setAttribute('data-appointment-id', appointmentId);
+                    videoBtn.innerHTML = '<i class="fas fa-video"></i> Start Consultation';
+                    
+                    // Replace any existing button with the video consultation button
+                    actionBtns.innerHTML = '';
+                    actionBtns.appendChild(videoBtn);
+                    
+                    // Add event listener for video consultation button
+                    videoBtn.addEventListener('click', function() {
+                        alert('Video consultation functionality will be implemented later.');
+                        // The actual implementation would be:
+                        // startVideoConsultation(appointmentId);
+                    });
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error updating video consultation button:', error);
+        });
+}
+    // Update appointment status function
+    function updateAppointmentStatus(appointmentId, newStatus, patientId) {
+        console.log(`Updating appointment ${appointmentId} to status ${newStatus}`);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/api/update-appointment-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                appointment_id: appointmentId,
+                status: newStatus
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(`Appointment ${newStatus === 'scheduled' ? 'approved' : 'cancelled'} successfully`);
+                // Refresh the appointment list or the whole modal
+                fetchPatientDetails(patientId);
+            } else {
+                alert(data.error || `Failed to ${newStatus === 'scheduled' ? 'approve' : 'cancel'} appointment`);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating appointment status:', error);
+            alert('An error occurred while updating the appointment. Please check the console for details.');
+        });
+    }
+
+    // Show fee request modal for a specific appointment
+    function showFeeRequestModal(patientId, appointmentId) {
+        // First check if doctor has registered UPI ID
+        fetch('/api/doctor/upi-details')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || !data.upi_details || data.upi_details.length === 0) {
+                    showUpiRegistrationModal(patientId, appointmentId);
+                    console.log(`Show fee request modal for patient ${patientId} and appointment ${appointmentId}`);
+                } else {
+                    showPaymentRequestModal(patientId, appointmentId, data.upi_details);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching UPI details:', error);
+                alert('Failed to check UPI details. Please try again.');
+            });
+    }
+    
+    // Show UPI registration modal if doctor doesn't have UPI ID
+    function showUpiRegistrationModal(patientId, appointmentId) {
+    // Remove any existing modals first
+    removeExistingModals();
+    
+    // Add modal-open class to body
+    document.body.classList.add('modal-open');
+    
+    const modalHtml = `
+        <div class="upi-modal">
+            <div class="upi-modal-content">
+                <div class="modal-header">
+                    <h3>Register UPI ID</h3>
+                    <span class="close-upi-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>You need to register a UPI ID before sending payment requests.</p>
+                    <form id="upiRegistrationForm">
+                        <div class="form-group">
+                            <label for="upiId">UPI ID</label>
+                            <input type="text" id="upiId" placeholder="yourname@bankname" required>
+                            <small>Example: yourname@upi, yourname@okhdfcbank, etc.</small>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn primary">Register UPI ID</button>
+                            <button type="button" class="btn secondary cancel-upi-btn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const upiModalElement = document.createElement('div');
+    upiModalElement.id = 'upiModalContainer';
+    upiModalElement.innerHTML = modalHtml;
+    document.body.appendChild(upiModalElement);
+    
+    // Close modal functionality
+    const closeBtn = upiModalElement.querySelector('.close-upi-modal');
+    const cancelBtn = upiModalElement.querySelector('.cancel-upi-btn');
+    
+    closeBtn.addEventListener('click', () => {
+        closeModal(upiModalElement);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        closeModal(upiModalElement);
+    });
+    
+    // Handle UPI registration form submission
+    const upiForm = upiModalElement.querySelector('#upiRegistrationForm');
+    upiForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const upiId = document.getElementById('upiId').value;
+        
+        // Simple UPI ID validation
+        const upiPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+        if (!upiPattern.test(upiId)) {
+            alert('Please enter a valid UPI ID (e.g., yourname@bankname)');
+            return;
+        }
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/api/doctor/register-upi', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                upi_id: upiId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('UPI ID registered successfully');
+                closeModal(upiModalElement);
+                
+                // Now show payment request modal with the newly registered UPI ID
+                showPaymentRequestModal(patientId, appointmentId, [{ upi_id: upiId }]);
+            } else {
+                alert(data.error || 'Failed to register UPI ID');
+            }
+        })
+        .catch(error => {
+            console.error('Error registering UPI ID:', error);
+            alert('An error occurred while registering your UPI ID');
+        });
+    });
+}
+
+    // Show payment request modal
+// Show payment request modal
+function showPaymentRequestModal(patientId, appointmentId, upiDetails) {
+    // Remove any existing modals first
+    removeExistingModals();
+    
+    // Add modal-open class to body
+    document.body.classList.add('modal-open');
+    
+    const upiOptions = upiDetails.map(detail => 
+        `<option value="${detail.upi_id}">${detail.upi_id}</option>`
+    ).join('');
+    
+    const modalHtml = `
+        <div class="payment-request-modal">
+            <div class="payment-request-content">
+                <div class="modal-header">
+                    <h3>Send Payment Request</h3>
+                    <span class="close-payment-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="paymentRequestForm">
+                        <div class="form-group">
+                            <label for="selectedUpi">Select UPI ID</label>
+                            <select id="selectedUpi" required>
+                                ${upiOptions}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="paymentAmount">Amount (₹)</label>
+                            <input type="number" id="paymentAmount" min="1" required placeholder="Enter amount in INR">
+                        </div>
+                        <div class="form-group">
+                            <label for="paymentDescription">Description</label>
+                            <textarea id="paymentDescription" required placeholder="e.g., Consultation fee for appointment on..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn primary">Send Request</button>
+                            <button type="button" class="btn secondary cancel-payment-btn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const paymentModalElement = document.createElement('div');
+    paymentModalElement.id = 'paymentModalContainer';
+    paymentModalElement.innerHTML = modalHtml;
+    document.body.appendChild(paymentModalElement);
+    
+    // Close modal functionality
+    const closeBtn = paymentModalElement.querySelector('.close-payment-modal');
+    const cancelBtn = paymentModalElement.querySelector('.cancel-payment-btn');
+    
+    closeBtn.addEventListener('click', () => {
+        closeModal(paymentModalElement);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        closeModal(paymentModalElement);
+    });
+    
+    // Handle payment request form submission
+    const paymentForm = paymentModalElement.querySelector('#paymentRequestForm');
+    paymentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const upiId = document.getElementById('selectedUpi').value;
+        const amount = document.getElementById('paymentAmount').value;
+        const description = document.getElementById('paymentDescription').value;
+        
+        if (!amount || isNaN(amount) || amount <= 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/api/send-payment-request', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                patient_id: patientId,
+                appointment_id: appointmentId,
+                upi_id: upiId,
+                amount: amount,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Payment request sent successfully', data);
+                alert('Payment request sent successfully');
+                closeModal(paymentModalElement);
+                
+                // Update the request fee button to "Request Sent" and disable it
+                console.log('Looking for button with appointment ID:', appointmentId);
+                const feeRequestBtn = document.querySelector(`.fee-request-btn[data-appointment-id="${appointmentId}"]`);
+                console.log('Found button:', feeRequestBtn);
+                
+                if (feeRequestBtn) {
+                    // Change the button text and appearance
+                    feeRequestBtn.innerHTML = '<i class="fas fa-rupee-sign"></i> Request Sent';
+                    feeRequestBtn.disabled = true;
+                    feeRequestBtn.classList.add('disabled');
+                    
+                    // Store the updated state in a data attribute
+                    feeRequestBtn.setAttribute('data-request-sent', 'true');
+                    
+                    // Remove the click event listener
+                    if (feeRequestBtn.clickHandler) {
+                        feeRequestBtn.removeEventListener('click', feeRequestBtn.clickHandler);
+                        feeRequestBtn.clickHandler = null;
+                    }
+                    
+                    console.log('Button updated successfully');
+                } else {
+                    console.error('Fee request button not found');
+                }
+                
+                // Refresh the patient details to ensure everything is up-to-date
+                fetchPatientDetails(patientId);
+            } else {
+                console.error('Payment request failed:', data.error);
+                alert(data.error || 'Failed to send payment request');
+            }
+        })
+        .catch(error => {
+            console.error('Error sending payment request:', error);
+            alert('An error occurred while sending the payment request');
+        });
+    });
+}
+
+function closeModal(modalElement) {
+    if (modalElement && modalElement.parentNode) {
+        modalElement.parentNode.removeChild(modalElement);
+    }
+    document.body.classList.remove('modal-open');
+}
+
+// Helper function to remove any existing modals
+function removeExistingModals() {
+    const existingUpiModal = document.getElementById('upiModalContainer');
+    if (existingUpiModal) {
+        existingUpiModal.parentNode.removeChild(existingUpiModal);
+    }
+    
+    const existingPaymentModal = document.getElementById('paymentModalContainer');
+    if (existingPaymentModal) {
+        existingPaymentModal.parentNode.removeChild(existingPaymentModal);
+    }
+    
+    document.body.classList.remove('modal-open');
+}
+    // Function to handle patient search with API
+    function initializePatientSearch() {
+        const searchInput = document.getElementById('patientSearch');
+        
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            if (query.length < 3) {
+                return; // Wait for at least 3 characters
+            }
+            
+            fetch(`/patients/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.patients && data.patients.length > 0) {
+                        // Filter the patient list based on API results
+                        updatePatientList(data.patients);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error searching patients:', error);
+                });
+        });
+    }
+    
+    // Update patient list based on search results
+    function updatePatientList(patients) {
+        const patientItems = document.querySelectorAll('.patient-item');
+        const patientIds = patients.map(p => p.id);
+        
+        patientItems.forEach(item => {
+            const id = item.getAttribute('data-patient-id');
+            if (patientIds.includes(parseInt(id))) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    // Initialize patient search with API
+    initializePatientSearch();
+});    
+</script>
+{% endblock %}

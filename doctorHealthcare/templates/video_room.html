@@ -1,0 +1,341 @@
+{% extends "dashboard-base.html" %}
+
+{% block title %}Video Consultation - HealthCare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    .video-container {
+        width: 100%;
+        height: calc(100vh - 150px);
+        position: relative;
+        background-color: #f7f7f7;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    #videoRoot {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    .appointment-info-panel {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .appointment-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .end-call-btn {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .end-call-btn:hover {
+        background-color: #c82333;
+    }
+</style>
+{% endblock %}
+
+{% block main_content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Video Consultation</h1>
+    </div>
+    
+    <div class="appointment-info-panel">
+        <div class="appointment-details">
+            <div class="appointment-info">
+                <h2>{% if is_doctor %}Patient: {{ appointment.patient_name }}{% else %}Doctor: {{ appointment.doctor_name }}{% endif %}</h2>
+                <p>Date: {{ appointment.appointment_date.strftime('%d %b, %Y') if appointment.appointment_date }}</p>
+                <p>Time: {{ appointment.formatted_time }}</p>
+            </div>
+            <button class="end-call-btn" onclick="endCall()">
+                <i class="fas fa-phone-slash"></i> End Consultation
+            </button>
+        </div>
+    </div>
+    
+    <div class="video-container">
+        <div id="videoRoot"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Import ZEGO UIKit -->
+<script src="https://unpkg.com/@zegocloud/zego-uikit-prebuilt@1.8.15/zego-uikit-prebuilt.js"></script>
+<script>
+    // Main initialization function
+// Main initialization function
+async function initVideoCall() {
+    try {
+        console.log("Starting initVideoCall function");
+        
+        // Get room ID from the server
+        const roomID = "{{ room_id }}";
+        if (!roomID) {
+            throw new Error("Room ID is missing");
+        }
+        
+        // Get user name from the server
+        const userName = "{{ user_name }}";
+        if (!userName) {
+            throw new Error("User name is missing");
+        }
+        
+        // Generate user ID
+        const userID = Math.floor(Math.random() * 10000).toString();
+        
+        // IMPORTANT: Replace these with your own credentials
+        const appID = 1903189039;  // Your AppID
+        const serverSecret = "358126c317b66521bbaad98a6f136664"; // Your ServerSecret
+        
+        console.log("Initializing video call with room ID:", roomID);
+        console.log("User:", userName, userID);
+        
+        // Generate a token with proper timestamp
+        const timestamp = Math.floor(Date.now() / 1000);
+        const expired = timestamp + 3600; // Token valid for 1 hour
+        
+        console.log("Generating kit token");
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+            appID,
+            serverSecret,
+            roomID,
+            userID,
+            userName,
+            expired
+        );
+        
+        if (!kitToken) {
+            throw new Error("Failed to generate token");
+        }
+        
+        console.log("Token generated successfully");
+        
+        // Create Zego instance
+        console.log("Creating Zego instance");
+        const zp = ZegoUIKitPrebuilt.create(kitToken);
+        
+        console.log("Joining room...");
+        // Join the room with specific configurations
+        window.zegoInstance = await zp.joinRoom({
+            container: document.querySelector("#videoRoot"),
+            scenario: {
+                mode: ZegoUIKitPrebuilt.OneONoneCall
+            },
+            showScreenSharingButton: true,
+            showUserList: true,
+            maxUsers: 2,
+            layout: "Grid",
+            showTextChat: true,
+            turnOnCameraWhenJoining: true,
+            turnOnMicrophoneWhenJoining: true,
+            showMyMicrophoneToggleButton: true,
+            showMyCameraToggleButton: true,
+            onJoinRoom: () => {
+                console.log("Successfully joined room:", roomID);
+            }
+        });
+        
+        console.log("Room joined successfully");
+    } catch (error) {
+        // Add the new debug logging here
+        console.log("Complete error object:", error);
+        console.log("Token details:", [
+            appID,
+            roomID, 
+            userID,
+            userName,
+            timestamp,
+            expired,
+            { region: "Asia" }
+        ]);
+        
+        console.error("Error initializing video call:", error);
+        document.getElementById('videoRoot').innerHTML = `
+            <div style="padding: 20px; text-align: center; color: red;">
+                <h2>Failed to join call</h2>
+                <p>${error.message}</p>
+                <button onclick="location.reload()" style="padding: 10px; margin-top: 15px;">Try Again</button>
+                <button onclick="window.location.href='{{ url_for('dashboard') }}'" style="padding: 10px; margin-top: 15px; margin-left: 10px;">Return to Dashboard</button>
+            </div>
+        `;
+    }
+}
+    
+function storeChat(message, isPrescription) {
+    const appointmentId = {{ appointment.id }};
+    
+    fetch('/api/store-chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            appointment_id: appointmentId,
+            message: message,
+            is_prescription: isPrescription
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Chat message stored:', data);
+    })
+    .catch(error => {
+        console.error('Error storing chat:', error);
+    });
+}
+
+function endCall() {
+    console.log("Ending call...");
+    
+    fetch('/api/end-session/{{ appointment.id }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Session ended:', data);
+        try {
+            if (window.zegoInstance) {
+                window.zegoInstance.destroy();
+            }
+        } catch (error) {
+            console.error("Error ending call:", error);
+        }
+        window.location.href = "{{ url_for('dashboard') }}";
+    })
+    .catch(error => {
+        console.error('Error ending session:', error);
+        window.location.href = "{{ url_for('dashboard') }}";
+    });
+}
+
+function addPrescriptionButton() {
+    // Find the chat input area
+    const chatInputArea = document.querySelector('.zego-chat-input');
+    if (chatInputArea) {
+        // Create prescription toggle button
+        const prescriptionBtn = document.createElement('button');
+        prescriptionBtn.type = 'button';
+        prescriptionBtn.className = 'prescription-toggle-btn';
+        prescriptionBtn.innerHTML = '<i class="fas fa-prescription"></i>';
+        prescriptionBtn.title = 'Mark as Prescription';
+        prescriptionBtn.style.position = 'absolute';
+        prescriptionBtn.style.right = '60px';
+        prescriptionBtn.style.bottom = '10px';
+        prescriptionBtn.style.padding = '5px 10px';
+        prescriptionBtn.style.backgroundColor = '#28a745';
+        prescriptionBtn.style.color = 'white';
+        prescriptionBtn.style.border = 'none';
+        prescriptionBtn.style.borderRadius = '4px';
+        prescriptionBtn.style.cursor = 'pointer';
+        
+        let isPrescription = false;
+        
+        prescriptionBtn.onclick = function() {
+            isPrescription = !isPrescription;
+            prescriptionBtn.style.backgroundColor = isPrescription ? '#dc3545' : '#28a745';
+            prescriptionBtn.title = isPrescription ? 'Cancel Prescription' : 'Mark as Prescription';
+            
+            // Get the input field
+            const inputField = chatInputArea.querySelector('textarea, input');
+            if (inputField) {
+                if (isPrescription) {
+                    inputField.placeholder = "Writing prescription...";
+                    inputField.classList.add('prescription-input');
+                } else {
+                    inputField.placeholder = "Type message here...";
+                    inputField.classList.remove('prescription-input');
+                }
+            }
+        };
+        
+        // Add the button to the chat input area
+        chatInputArea.appendChild(prescriptionBtn);
+        
+        // Modify the send button to add #prescription tag when sending prescriptions
+        const sendBtn = chatInputArea.querySelector('button[type="submit"]');
+        if (sendBtn) {
+            const originalOnClick = sendBtn.onclick;
+            
+            sendBtn.onclick = function(e) {
+                if (isPrescription) {
+                    const inputField = chatInputArea.querySelector('textarea, input');
+                    if (inputField && inputField.value) {
+                        // Add prescription tag to the message
+                        inputField.value = `#PRESCRIPTION# ${inputField.value}`;
+                    }
+                }
+                
+                // Reset prescription mode
+                isPrescription = false;
+                prescriptionBtn.style.backgroundColor = '#28a745';
+                
+                // Call original onClick handler
+                if (originalOnClick) {
+                    return originalOnClick.call(this, e);
+                }
+            };
+        }
+    }
+}
+
+setTimeout(addPrescriptionButton, 5000);
+// Capture chat messages
+// Make sure the ZEGO script is loaded before calling initVideoCall
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, checking for ZEGO script");
+    
+    // Check if ZEGO script is already loaded
+    if (typeof ZegoUIKitPrebuilt !== 'undefined') {
+        console.log("ZEGO script already loaded, initializing video call");
+        initVideoCall();
+    } else {
+        console.log("ZEGO script not loaded yet, setting up load listener");
+        // Set up a listener for when the script loads
+        window.onZegoScriptLoaded = function() {
+            console.log("ZEGO script loaded via event, initializing video call");
+            initVideoCall();
+        };
+        
+        // Load the script if it's not already in the document
+        if (!document.querySelector('script[src*="zego-uikit-prebuilt.js"]')) {
+            console.log("Adding ZEGO script to document");
+            const script = document.createElement('script');
+            script.src = "https://unpkg.com/@zegocloud/zego-uikit-prebuilt@1.8.15/zego-uikit-prebuilt.js";
+            script.onload = function() {
+                console.log("ZEGO script loaded, initializing video call");
+                if (window.onZegoScriptLoaded) window.onZegoScriptLoaded();
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Set a timeout as a fallback
+        setTimeout(function() {
+            if (typeof ZegoUIKitPrebuilt !== 'undefined' && !window.zegoInstance) {
+                console.log("ZEGO script detected via timeout, initializing video call");
+                initVideoCall();
+            }
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}

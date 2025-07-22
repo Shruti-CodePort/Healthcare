@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Register - HealthCare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card register-card">
+        <div class="auth-header">
+            <h2>Doctor Registration</h2>
+            <p>Create your account to access the healthcare platform.</p>
+        </div>
+        
+        <form action="{{ url_for('register') }}" method="POST" class="auth-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="email" name="email" required placeholder="Enter your email">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" name="password" required placeholder="Create a password">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="confirm_password" name="confirm_password" required placeholder="Confirm your password">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="specialty">Specialty</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-stethoscope"></i>
+                    <select id="specialty" name="specialty" required>
+                        <option value="">Select your specialty</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Dermatology">Dermatology</option>
+                        <option value="Endocrinology">Endocrinology</option>
+                        <option value="Gastroenterology">Gastroenterology</option>
+                        <option value="Neurology">Neurology</option>
+                        <option value="Oncology">Oncology</option>
+                        <option value="Orthopedics">Orthopedics</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                        <option value="Psychiatry">Psychiatry</option>
+                        <option value="Radiology">Radiology</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="license_number">License Number</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="license_number" name="license_number" required placeholder="Enter your license number">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="experience_years">Years of Experience</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-clock"></i>
+                        <input type="number" id="experience_years" name="experience_years" required min="0" placeholder="Years of experience">
+                    </div>
+                </div>
+            </div>
+                        
+            <div class="form-group">
+                <label for="qualification_docs">Qualification Documents</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-file-upload"></i>
+                    <input type="file" id="qualification_docs" name="qualification_docs" accept=".pdf,.doc,.docx" required>
+                </div>
+                <small class="form-text text-muted">Upload your qualification documents (PDF, DOC, DOCX)</small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn primary">Register</button>
+            </div>
+        </form>
+        
+        <div class="auth-footer">
+            <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

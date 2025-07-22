@@ -1,0 +1,136 @@
+{% extends "dashboard-base.html" %}
+
+{% block title %}Manage Appointments{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/appointments.css') }}" />
+{% endblock %}
+
+
+{% block sidebar_content %}
+<ul class="sidebar-menu">
+    <li class="sidebar-item {{ 'active' if active_page == 'dashboard' else '' }}">
+        <a href="{{ url_for('dashboard') }}">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'appointments' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('appointments') if doctor.is_verified else '#' }}">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Appointments</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'patients' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('patients') if doctor.is_verified else '#' }}">
+            <i class="fas fa-users"></i>
+            <span>Patients</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'video_consultation' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('doctor_video_consultation') if doctor.is_verified else '#' }}">
+            <i class="fas fa-video"></i>
+            <span>Video Consultation</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'active' if active_page == 'analytics' else '' }} {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('analytics') if doctor.is_verified else '#' }}">
+            <i class="fas fa-chart-bar"></i>
+            <span>Analytics</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block sidebar_footer %}
+<div class="user-info">
+    <div class="user-avatar">
+        <span class="status-dot {{ 'online' if doctor.is_online else 'offline' }}"></span>
+    </div>
+    <div class="user-details">
+        <h3>Dr. {{ doctor.name }}</h3>
+        <p>{{ doctor.specialty }}</p>
+        <div class="verification-status">
+            {% if doctor.is_verified %}
+            <span class="verification-badge verified">Verified</span>
+            {% else %}
+            <span class="verification-badge pending">Pending Verification</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<a href="{{ url_for('logout') }}" class="logout-btn">
+    <i class="fas fa-sign-out-alt"></i>
+    <span>Logout</span>
+</a>
+{% endblock %}
+
+{% block main_content %}
+<div class="appointments-container">
+    <div class="schedule-header">
+        <h2>Manage Your Schedule</h2>
+        <button class="btn-add" id="addScheduleBtn">Add New Schedule</button>
+    </div>
+
+    <div class="schedule-form" id="scheduleForm" style="display: none;">
+        <h3>Add Available Time Slot</h3>
+        <form method="POST" action="{{ url_for('appointments') }}" id="availabilityForm">
+            <div class="form-group">
+                <label for="schedule_date">Date:</label>
+                <input type="date" id="schedule_date" name="schedule_date" required>
+            </div>
+            <div class="form-group">
+                <label for="start_time">Start Time:</label>
+                <input type="time" id="start_time" name="start_time" required>
+            </div>
+            <div class="form-group">
+                <p class="info-text">Slot duration is fixed at 30 minutes</p>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-save">Save</button>
+                <button type="button" class="btn-cancel" id="cancelBtn">Cancel</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="schedule-list">
+        <div class="schedule-grid">
+            {% if not schedules %}
+                <p>No schedules found</p>
+            {% else %}
+                {% for schedule in schedules %}
+                <div class="schedule-item">
+                    <h3>{{ schedule.schedule_date.strftime('%A, %B %d, %Y') }}</h3>
+                    <p>Time: {{ schedule.start_time }} - {{ schedule.end_time }}</p>
+                    <p>Duration: {{ schedule.duration }} minutes</p>
+                    <div class="actions">
+                        {% if schedule.booked_appointments > 0 %}
+                            <button class="btn-delete disabled" disabled title="Cannot delete: Has booked appointments">Delete</button>
+                            <span class="appointment-badge">{{ schedule.booked_appointments }} appointment(s)</span>
+                        {% else %}
+                            <button onclick="deleteSchedule('{{ schedule.id }}')" class="btn-delete">Delete</button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/appointments.js') }}"></script>
+{% endblock %}

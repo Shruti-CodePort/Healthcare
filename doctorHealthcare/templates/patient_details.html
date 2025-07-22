@@ -1,0 +1,496 @@
+
+{# patient_details.html #}
+{% extends "dashboard-base.html" %}
+
+{% block title %}Patient Details - HealthCare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    .patient-header {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .patient-tabs {
+        margin-bottom: 20px;
+    }
+    
+    .medical-history {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .prescription-card {
+        background: #f8fafc;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .consultation-record {
+        background: #f8fafc;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .health-metrics-chart {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .metric-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-right: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .metric-normal { background-color: #d1fae5; color: #065f46; }
+    .metric-warning { background-color: #fef3c7; color: #92400e; }
+    .metric-alert { background-color: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block main_content %}
+<div class="dashboard-container">
+    <!-- Patient Header -->
+    <div class="patient-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h2>{{ patient.full_name }}</h2>
+                <p class="text-muted">
+                    Age: {{ ((today - patient.date_of_birth).days / 365)|int }} years
+                    <span class="mx-2">|</span>
+                    Contact: {{ patient.contact_number }}
+                </p>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPrescriptionModal">
+                New Prescription
+            </button>
+        </div>
+    </div>
+
+    <!-- Patient Navigation Tabs -->
+    <ul class="nav nav-tabs patient-tabs" id="patientTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#overview">Overview</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#appointments">Appointments</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#prescriptions">Prescriptions</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#consultations">Consultations</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#healthMetrics">Health Metrics</a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview">
+            <div class="medical-history">
+                <h4>Medical History</h4>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h5>Previous Illnesses</h5>
+                        <p>{{ patient.previous_illnesses or 'None reported' }}</p>
+                        
+                        <h5>Current Medications</h5>
+                        <p>{{ patient.current_medications or 'None reported' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Known Allergies</h5>
+                        <p>{{ patient.known_allergies or 'None reported' }}</p>
+                        
+                        <h5>Previous Surgeries</h5>
+                        <p>{{ patient.previous_surgeries or 'None reported' }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="health-metrics-chart">
+                <h4>Recent Health Metrics</h4>
+                <div id="healthMetricsChart"></div>
+            </div>
+        </div>
+
+        <!-- Appointments Tab -->
+        <div class="tab-pane fade" id="appointments">
+            {% for appointment in appointments %}
+            <div class="appointment-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>{{ appointment.appointment_date.strftime('%B %d, %Y') }}</h5>
+                        <p class="mb-0">{{ appointment.appointment_time.strftime('%I:%M %p') }}</p>
+                        <span class="badge bg-{{ appointment.status }}">
+                            {{ appointment.status|title }}
+                        </span>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-primary view-consultation" 
+                                data-appointment-id="{{ appointment.id }}">
+                            View Consultation
+                        </button>
+                    </div>
+                </div>
+                {% if appointment.symptoms %}
+                <div class="mt-3">
+                    <p class="mb-0"><strong>Symptoms:</strong> {{ appointment.symptoms }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Prescriptions Tab -->
+        <div class="tab-pane fade" id="prescriptions">
+            {% for prescription in prescriptions %}
+            <div class="prescription-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Prescription - {{ prescription.created_at.strftime('%B %d, %Y') }}</h5>
+                        <p class="mb-0"><strong>Diagnosis:</strong> {{ prescription.diagnosis }}</p>
+                    </div>
+                    <button class="btn btn-sm btn-secondary download-prescription" 
+                            data-prescription-id="{{ prescription.id }}">
+                        Download PDF
+                    </button>
+                </div>
+                
+                <div class="medications mt-3">
+                    <h6>Medications</h6>
+                    <ul class="list-unstyled">
+                        {% for medication in prescription.medications %}
+                        <li class="mb-2">
+                            <strong>{{ medication.medication_name }}</strong>
+                            <br>
+                            {{ medication.dosage }} - {{ medication.frequency }}
+                            {% if medication.special_instructions %}
+                            <br>
+                            <small class="text-muted">{{ medication.special_instructions }}</small>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                {% if prescription.notes %}
+                <div class="mt-3">
+                    <p class="mb-0"><strong>Notes:</strong> {{ prescription.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Consultations Tab -->
+        <div class="tab-pane fade" id="consultations">
+            {% for consultation in consultations %}
+            <div class="consultation-record">
+                <h5>{{ consultation.created_at.strftime('%B %d, %Y') }}</h5>
+                <div class="mt-3">
+                    <p><strong>Symptoms:</strong> {{ consultation.symptoms }}</p>
+                    <p><strong>Diagnosis:</strong> {{ consultation.diagnosis }}</p>
+                    {% if consultation.notes %}
+                    <p><strong>Notes:</strong> {{ consultation.notes }}</p>
+                    {% endif %}
+                    {% if consultation.follow_up_required %}
+                    <p class="mb-0">
+                        <strong>Follow-up Required:</strong> 
+                        {{ consultation.follow_up_date.strftime('%B %d, %Y') }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Health Metrics Tab -->
+        <div class="tab-pane fade" id="healthMetrics">
+            <div class="health-metrics-chart">
+                <h4>Health Metrics History</h4>
+                <div id="detailedHealthMetricsChart"></div>
+                
+                <div class="metrics-list mt-4">
+                    {% for metric in health_metrics %}
+                    <div class="metric-record mb-3">
+                        <h6>{{ metric.created_at.strftime('%B %d, %Y') }}</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if metric.bp_monitored %}
+                            <span class="metric-badge {{ 'metric-normal' if metric.systolic < 140 and metric.diastolic < 90 else 'metric-alert' }}">
+                                BP: {{ metric.systolic }}/{{ metric.diastolic }}
+                            </span>
+                            {% endif %}
+                            
+                            {% if metric.sugar_monitored %}
+                            <span class="metric-badge {{ 'metric-normal' if metric.blood_sugar < 140 else 'metric-warning' }}">
+                                Blood Sugar: {{ metric.blood_sugar }} mg/dL
+                            </span>
+                            {% endif %}
+                            
+                            {% if metric.temp_monitored %}
+                            <span class="metric-badge {{ 'metric-normal' if metric.body_temp < 37.5 else 'metric-alert' }}">
+                                Temperature: {{ metric.body_temp }}°C
+                            </span>
+                            {% endif %}
+                            
+                            {% if metric.glucose_monitored %}
+                            <span class="metric-badge {{ 'metric-normal' if metric.glucose_level < 100 else 'metric-warning' }}">
+                                Glucose: {{ metric.glucose_level }} mg/dL
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Prescription Modal -->
+<div class="modal fade" id="newPrescriptionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Prescription</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="prescriptionForm">
+                    <div class="mb-3">
+                        <label class="form-label">Diagnosis</label>
+                        <input type="text" class="form-control" name="diagnosis" required>
+                    </div>
+                    
+                    <div id="medicationsList">
+                        <div class="medication-item mb-3">
+                            <h6>Medication 1</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Medication Name</label>
+                                    <input type="text" class="form-control" name="medication_name[]" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Dosage</label>
+                                    <input type="text" class="form-control" name="dosage[]" required>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <label class="form-label">Frequency</label>
+                                    <input type="text" class="form-control" name="frequency[]" required>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <label class="form-label">Duration (days)</label>
+                                    <input type="number" class="form-control" name="duration[]" required>
+                                </div>
+                                <div class="col-12 mt-2">
+                                    <label class="form-label">Special Instructions</label>
+                                    <input type="text" class="form-control" name="special_instructions[]">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="addMedication">
+                        Add Another Medication
+                    </button>
+                    
+                    <div class="mb-3 mt-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Validity (days)</label>
+                        <input type="number" class="form-control" name="validity_days" value="30">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePrescription">Save Prescription</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script>
+// Initialize health metrics charts
+const healthMetricsCtx = document.getElementById('healthMetricsChart').getContext('2d');
+const healthMetricsChart = new Chart(healthMetricsCtx, {
+    type: 'line',
+    data: {
+        labels: JSON.parse('{{ health_metrics|map(attribute="created_at")|map("strftime", "%Y-%m-%d")|list|tojson|safe }}'),
+        datasets: [
+            {
+                label: 'Blood Pressure (Systolic)',
+                data: JSON.parse('{{ health_metrics|map(attribute="systolic")|list|tojson|safe }}'),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            },
+            {
+                label: 'Blood Pressure (Diastolic)',
+                data: JSON.parse('{{ health_metrics|map(attribute="diastolic")|list|tojson|safe }}'),
+                borderColor: 'rgb(255, 99, 132)',
+                tension: 0.1
+            },
+            {
+                label: 'Blood Sugar',
+                data: JSON.parse('{{ health_metrics|map(attribute="blood_sugar")|list|tojson|safe }}'),
+                borderColor: 'rgb(153, 102, 255)',
+                tension: 0.1
+            },
+            {
+                label: 'Body Temperature',
+                data: JSON.parse('{{ health_metrics|map(attribute="body_temp")|list|tojson|safe }}'),
+                borderColor: 'rgb(255, 159, 64)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: true,
+                text: 'Health Metrics Trends'
+            }
+        }
+    }
+});
+
+// Add Medication button handler
+document.getElementById('addMedication').addEventListener('click', function() {
+    const medicationsList = document.getElementById('medicationsList');
+    const medicationCount = medicationsList.children.length + 1;
+    
+    const newMedication = document.createElement('div');
+    newMedication.className = 'medication-item mb-3';
+    newMedication.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6>Medication ${medicationCount}</h6>
+            <button type="button" class="btn btn-sm btn-danger remove-medication">Remove</button>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">Medication Name</label>
+                <input type="text" class="form-control" name="medication_name[]" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Dosage</label>
+                <input type="text" class="form-control" name="dosage[]" required>
+            </div>
+            <div class="col-md-6 mt-2">
+                <label class="form-label">Frequency</label>
+                <input type="text" class="form-control" name="frequency[]" required>
+            </div>
+            <div class="col-md-6 mt-2">
+                <label class="form-label">Duration (days)</label>
+                <input type="number" class="form-control" name="duration[]" required>
+            </div>
+            <div class="col-12 mt-2">
+                <label class="form-label">Special Instructions</label>
+                <input type="text" class="form-control" name="special_instructions[]">
+            </div>
+        </div>
+    `;
+    
+    medicationsList.appendChild(newMedication);
+});
+
+// Remove medication button handler
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-medication')) {
+        e.target.closest('.medication-item').remove();
+    }
+});
+
+// Save prescription handler
+document.getElementById('savePrescription').addEventListener('click', function() {
+    const form = document.getElementById('prescriptionForm');
+    const formData = new FormData(form);
+    
+    const medications = [];
+    const medicationNames = formData.getAll('medication_name[]');
+    const dosages = formData.getAll('dosage[]');
+    const frequencies = formData.getAll('frequency[]');
+    const durations = formData.getAll('duration[]');
+    const specialInstructions = formData.getAll('special_instructions[]');
+    
+    for (let i = 0; i < medicationNames.length; i++) {
+        medications.push({
+            name: medicationNames[i],
+            dosage: dosages[i],
+            frequency: frequencies[i],
+            duration: durations[i],
+            special_instructions: specialInstructions[i]
+        });
+    }
+    
+    const prescriptionData = {
+        diagnosis: formData.get('diagnosis'),
+        notes: formData.get('notes'),
+        validity_days: formData.get('validity_days'),
+        medications: medications
+    };
+    
+    fetch(`/api/patient/{{ patient.id }}/prescriptions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prescriptionData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error creating prescription: ' + data.error);
+        } else {
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating prescription');
+    });
+});
+
+// Download prescription handler
+document.querySelectorAll('.download-prescription').forEach(button => {
+    button.addEventListener('click', function() {
+        const prescriptionId = this.dataset.prescriptionId;
+        window.location.href = `/prescription/${prescriptionId}/download`;
+    });
+});
+
+// View consultation handler
+document.querySelectorAll('.view-consultation').forEach(button => {
+    button.addEventListener('click', function() {
+        const appointmentId = this.dataset.appointmentId;
+        window.location.href = `/consultation/${appointmentId}`;
+    });
+});
+</script>
+{% endblock %}
+ 

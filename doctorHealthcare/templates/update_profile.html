@@ -1,0 +1,252 @@
+{% extends "dashboard-base.html" %}
+
+{% block title %}Update Profile - HealthCare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    .verification-banner {
+        padding: 15px;
+        background-color: #fff3cd;
+        border-left: 5px solid #ffeeba;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .disabled-feature {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    .verification-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+    
+    .verification-badge.pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .verification-badge.verified {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .card-action.disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .verification-status-info {
+        margin-top: 10px;
+        font-style: italic;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block sidebar_content %}
+<ul class="sidebar-menu">
+    <li class="sidebar-item active">
+        <a href="{{ url_for('dashboard') }}">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('appointments') if doctor.is_verified else '#' }}">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Appointments</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('patients') if doctor.is_verified else '#' }}">
+            <i class="fas fa-users"></i>
+            <span>Patients</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+    <li class="sidebar-item {{ 'disabled-feature' if not doctor.is_verified }}">
+        <a href="{{ url_for('analytics') if doctor.is_verified else '#' }}">
+            <i class="fas fa-chart-bar"></i>
+            <span>Analytics</span>
+            {% if not doctor.is_verified %}
+            <small class="verification-required">(Verification Required)</small>
+            {% endif %}
+        </a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block sidebar_footer %}
+<div class="user-info">
+    <div class="user-avatar">
+        <span class="status-dot {{ 'online' if doctor.is_online else 'offline' }}"></span>
+    </div>
+    <div class="user-details">
+        <h3>Dr. {{ doctor.name }}</h3>
+        <p>{{ doctor.specialty }}</p>
+        <div class="verification-status">
+            {% if doctor.is_verified %}
+            <span class="verification-badge verified">Verified</span>
+            {% else %}
+            <span class="verification-badge pending">Pending Verification</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<a href="{{ url_for('logout') }}" class="logout-btn">
+    <i class="fas fa-sign-out-alt"></i>
+    <span>Logout</span>
+</a>
+{% endblock %}
+
+{% block main_content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <h1>Update Your Profile</h1>
+        <p>Keep your professional information up to date</p>
+    </div>
+    
+    <div class="profile-form-container">
+        <form action="{{ url_for('update_profile') }}" method="POST" class="profile-form" enctype="multipart/form-data">
+            <div class="form-section">
+                <h2>Personal Information</h2>
+                
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" value="{{ doctor.name }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" value="{{ doctor.email }}" disabled>
+                    <small>Email cannot be changed. Please contact support if needed.</small>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2>Professional Details</h2>
+                
+                <div class="form-group">
+                    <label for="specialty">Specialty</label>
+                    <input type="text" id="specialty" name="specialty" value="{{ doctor.specialty }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="license_number">License Number</label>
+                    <input type="text" id="license_number" name="license_number" value="{{ doctor.license_number }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="qualification">Qualifications</label>
+                    <textarea id="qualification" name="qualification" rows="3" required>{{ doctor.qualification }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="experience_years">Years of Experience</label>
+                    <input type="number" id="experience_years" name="experience_years" value="{{ doctor.experience_years }}" min="0" required>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2>Verification Documents</h2>
+                
+                <div class="verification-status">
+                    <h3>Verification Status:</h3>
+                    <span class="verification-badge {{ 'verified' if doctor.is_verified else 'pending' }}">
+                        {{ 'Verified' if doctor.is_verified else 'Pending Verification' }}
+                    </span>
+                </div>
+                
+                {% if doctor.verification_documents %}
+                <div class="current-document">
+                    <p><strong>Current Document:</strong></p>
+                    <div class="document-preview">
+                        {% set file_ext = doctor.verification_documents.split('.')[-1].lower() %}
+                        <div class="document-icon">
+                            {% if file_ext in ['pdf'] %}
+                                <i class="fas fa-file-pdf"></i>
+                            {% elif file_ext in ['doc', 'docx'] %}
+                                <i class="fas fa-file-word"></i>
+                            {% elif file_ext in ['jpg', 'jpeg', 'png'] %}
+                                <i class="fas fa-file-image"></i>
+                            {% else %}
+                                <i class="fas fa-file"></i>
+                            {% endif %}
+                        </div>
+                        <div class="document-info">
+                            <div class="document-name">{{ doctor.verification_documents }}</div>
+                            <div class="document-meta">
+                                <a href="{{ url_for('static', filename='uploads/qualifications/' + doctor.verification_documents) }}" target="_blank">View Document</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="form-group">
+                    <label for="verification_documents">
+                        {% if doctor.verification_documents %}
+                            Update Verification Documents
+                        {% else %}
+                            Upload Verification Documents
+                        {% endif %}
+                    </label>
+                    <div class="file-upload">
+                        <input type="file" id="verification_documents" name="verification_documents" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                        <label for="verification_documents" class="file-upload-btn">
+                            <i class="fas fa-cloud-upload-alt"></i> Choose Files
+                        </label>
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                    <small>
+                        {% if doctor.verification_documents %}
+                            Upload new document to replace the current one (PDF, DOC, DOCX, JPG, JPEG, PNG)
+                        {% else %}
+                            Upload your medical license, certifications, and any other relevant documents for verification (PDF, DOC, DOCX, JPG, JPEG, PNG)
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn primary">Save Changes</button>
+                <a href="{{ url_for('dashboard') }}" class="btn secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('verification_documents');
+        const fileName = document.querySelector('.file-name');
+        
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length > 0) {
+                    fileName.textContent = fileInput.files.length > 1 
+                        ? fileInput.files.length + ' files selected' 
+                        : fileInput.files[0].name;
+                } else {
+                    fileName.textContent = 'No file chosen';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
