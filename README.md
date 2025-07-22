@@ -1,43 +1,49 @@
 🏥 Healthcare Management System
+
 A multi-role healthcare system developed using Python Flask, MySQL, HTML/CSS, designed to allow Doctors, Patients, and Admins to interact securely and efficiently.
 
-📌 Key Features
-👨‍⚕️ Doctor Panel
-Registration with document and license upload.
+📌 Key Features:
 
-Set availability schedule in 30-minute slots.
+👨‍⚕️ Doctor Panel:
 
-Approve patient bookings.
+-> Registration with document and license upload.
 
-Share UPI ID/QR for payment.
+-> Set availability schedule in 30-minute slots.
 
-Verify payment (via screenshot).
+-> Approve patient bookings.
 
-Start video calls with patients using ZegoCloud.
+-> Share UPI ID/QR for payment.
 
-🧑‍🦱 Patient Panel
-Register and maintain a health profile (illness, surgery history).
+-> Verify payment (via screenshot).
 
-View doctor availability.
+-> Start video calls with patients using ZegoCloud.
 
-Book appointments and upload payment screenshot.
+🧑‍🦱 Patient Panel:
 
-Join consultation call once verified.
+-> Register and maintain a health profile (illness, surgery history).
 
-🧑‍💼 Admin Panel
-Verify doctor documents before granting platform access.
+-> View doctor availability.
 
-🛠 Technologies Used
-Frontend: HTML, CSS
+-> Book appointments and upload payment screenshot.
 
-Backend: Python (Flask)
+-> Join consultation call once verified.
 
-Database: MySQL
+🧑‍💼 Admin Panel:
 
-Authentication: Sessions
+-> Verify doctor documents before granting platform access.
 
-Video Integration: ZegoCloud
+🛠 Technologies Used:
 
-Payment Mode: Manual UPI/QR upload
+-> Frontend: HTML, CSS, JS
 
-File Uploads: Handled via Flask
+-> Backend: Python (Flask)
+
+-> Database: MySQL
+
+-> Authentication: Sessions
+
+-> Video Integration: ZegoCloud API
+
+-> Payment Mode: Manual UPI/QR upload
+
+-> File Uploads: Handled via Flask
