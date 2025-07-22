@@ -1,0 +1,1299 @@
+{# templates/dashboard.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_video_consultation.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash_messages.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/billing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/patient_video.css') }}">
+    <style>
+/* Consultation Container */
+.consultation-container1 {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.consultation-container1 h2 {
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-size: 24px;
+}
+
+/* Search and Filter Section */
+.search-filter-section {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.search-box {
+    flex: 2;
+    position: relative;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+}
+
+.filter-box {
+    flex: 1;
+}
+
+.filter-box select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: white;
+}
+
+/* Doctors Grid */
+.doctors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.doctor-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.doctor-card:hover {
+    transform: translateY(-2px);
+}
+
+.doctor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.doctor-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.online .status-dot {
+    background-color: #4CAF50;
+}
+
+.offline .status-dot {
+    background-color: #9e9e9e;
+}
+
+.online {
+    color: #4CAF50;
+}
+
+.offline {
+    color: #9e9e9e;
+}
+
+.doctor-rating {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #ffc107;
+}
+
+.doctor-info {
+    margin-bottom: 20px;
+}
+
+.doctor-info h3 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.doctor-info p {
+    color: #666;
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.doctor-actions {
+    text-align: center;
+}
+
+.view-schedule-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.view-schedule-btn:hover:not(.disabled) {
+    background-color: #1976D2;
+}
+
+.view-schedule-btn.disabled {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+}
+
+/* Schedule Modal */
+.modal-dialog {
+    max-width: 800px;
+}
+
+.schedule-container {
+    margin-top: 20px;
+}
+
+.date-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.nav-btn {
+    padding: 8px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+.date-headers {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.date-header {
+    text-align: center;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+.day {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.date {
+    font-size: 24px;
+    color: #2196F3;
+    margin: 5px 0;
+}
+
+.month {
+    color: #666;
+}
+
+.time-slots-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+}
+
+.day-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.time-slot {
+    padding: 10px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    text-align: center;
+}
+
+.time-slot.available {
+    border: 1px solid #4CAF50;
+}
+
+.time-slot.booked {
+    border: 1px solid #e0e0e0;
+    opacity: 0.7;
+}
+
+.time {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.book-slot-btn {
+    padding: 6px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.book-slot-btn:hover {
+    background-color: #388E3C;
+}
+
+.booked-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    background-color: #e0e0e0;
+    color: #666;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* No Results Message */
+.no-results, .no-slots {
+    text-align: center;
+    padding: 30px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    color: #666;
+}
+
+/* Loading and Error States */
+.loading, .error {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+
+.error {
+    color: #f44336;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .search-filter-section {
+        flex-direction: column;
+    }
+    
+    .doctors-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .time-slots-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .date-headers {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Add these styles to your CSS file */
+
+/* Styling for the loading spinner */
+/* Add these styles to your CSS file */
+
+/* Styling for the loading spinner */
+.fa-spinner {
+    margin-right: 5px;
+}
+
+/* Styling for fee request details */
+.fee-request-details {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.fee-request-details h5 {
+    color: #28a745;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.fee-description {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.fee-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.pay-fee-btn, .cancel-fee-btn {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.pay-fee-btn {
+    background-color: #28a745;
+    color: white;
+    flex: 2;
+    margin-right: 5px;
+}
+
+.pay-fee-btn:hover {
+    background-color: #218838;
+}
+
+.cancel-fee-btn {
+    background-color: #dc3545;
+    color: white;
+    flex: 1;
+}
+
+.cancel-fee-btn:hover {
+    background-color: #c82333;
+}
+
+/* Styling for booking button states */
+.book-slot-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Status indicators */
+.pending-approval {
+    background-color: #ffc107;
+    color: #212529;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+.pending-badge {
+    background-color: #f0ad4e;
+    color: white;
+    padding: 2px.5px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    white-space: nowrap;
+}
+    </style>
+    <!-- Add Bootstrap CSS for modal functionality -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <div id="flash-message-container" class="flash-container">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                <span class="flash-content">{{ message }}</span>
+                                <button class="flash-close">&times;</button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+            <div class="logo">
+                <h2>Healthcare</h2>
+            </div>
+            <div class="user-info" id="userInfoSection" role="button" tabindex="0">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <div id="userName">{{ name }}</div>
+                    <small>Patient ID: {{ patient_id }}</small>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a class="nav-link" data-frame="healthMetrics">
+                    <i class="fas fa-heartbeat"></i>
+                    Health Metrics
+                </a>
+                <a class="nav-link" data-frame="consultation">
+                    <i class="fas fa-user-md"></i>
+                    Doctor Availablity
+                </a>
+                <a class="nav-link" data-frame="billing">
+                    <i class="fas fa-mobile-alt"></i>
+                    Payment Request
+                </a>
+                <a class="nav-link" data-frame="prescriptions">
+                    <i class="fas fa-video"></i>
+                    Video Consultation
+                </a>
+            </nav>
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+        <div class="main-content">
+            <div id="personalDetails" class="content-frame active">
+                <div class="details-container">
+                    <div class="header-section">
+                        <h2>Personal Health Details</h2>
+                        <a href="{{ url_for('personal_health_details') }}" class="edit-btn">
+                            <i class="fas fa-edit"></i> Edit Details
+                        </a>
+                    </div>
+                    
+                    <div class="info-sections">
+                        <div class="info-section">
+                            <h3>Personal Information</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Patient Name:</label>
+                                    <span>{{ health_details.patient_name }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Date of Birth:</label>
+                                    <span>
+                                    {% if health_details and health_details.date_of_birth %}
+                                        {{ health_details.date_of_birth.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        Not provided
+                                    {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Contact Number:</label>
+                                    <span>{{ health_details.contact_number }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h3>Medical History</h3>
+                            <div class="medical-info">
+                                <!-- Previous Illnesses Card -->
+                                <div class="medical-card">
+                                    <div class="card-header">
+                                        <i class="fas fa-history"></i>
+                                        <h4>Previous Illnesses</h4>
+                                    </div>
+                                    <div class="card-content">
+                                        <!-- For Previous Illnesses, Current Medications, Known Allergies sections -->
+                                        {% if health_details and health_details.previous_illnesses %}
+                                            <p>{{ health_details.previous_illnesses }}</p>
+                                        {% else %}
+                                            <p class="no-data">No previous illnesses reported</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+    
+                                <!-- Current Medications Card -->
+                                <div class="medical-card">
+                                    <div class="card-header">
+                                        <i class="fas fa-pills"></i>
+                                        <h4>Current Medications</h4>
+                                    </div>
+                                    <div class="card-content">
+                                        {% if health_details.current_medications %}
+                                            <p>{{ health_details.current_medications }}</p>
+                                        {% else %}
+                                            <p class="no-data">No current medications reported</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+    
+                                <!-- Known Allergies Card -->
+                                <div class="medical-card">
+                                    <div class="card-header">
+                                        <i class="fas fa-allergies"></i>
+                                        <h4>Known Allergies</h4>
+                                    </div>
+                                    <div class="card-content">
+                                        {% if health_details.known_allergies %}
+                                            <p>{{ health_details.known_allergies }}</p>
+                                        {% else %}
+                                            <p class="no-data">No known allergies reported</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+    
+                                <!-- Previous Surgeries Card -->
+                                <!-- Add this section inside the Medical History section in dashboard.html -->
+                                <!-- Surgery Documents Card -->
+                                <div class="medical-card">
+                                    <div class="card-header">
+                                        <i class="fas fa-file-medical"></i>
+                                        <h4>Surgery Documents</h4>
+                                    </div>
+                                    <div class="card-content">
+                                        {% if health_details and health_details.document_path and has_document %}
+                                            <div class="document-list">
+                                                <div class="document-item">
+                                                    <div class="document-info">
+                                                        <i class="fas fa-file-pdf"></i>
+                                                        <span class="document-name">{{ document_name }}</span>
+                                                    </div>
+                                                    <div class="document-meta">
+                                                        <br>
+                                                        <span class="upload-date">
+                                                            Uploaded: {{ health_details.created_at.strftime('%Y-%m-%d') }}
+                                                        </span>
+                                                        <!-- You'll need a route to serve this file -->
+                                                        <a href="{{ url_for('serve_document', file_path=health_details.document_path) }}" class="btn-view" target="_blank">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <p class="no-data">No surgery documents uploaded</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>            
+            <div id="healthMetrics" class="content-frame">
+                <div class="health-metrics-container">
+                    <h1>Health Metrics Monitoring</h1>
+                    
+                    <form id="healthMetricsForm" action="{{ url_for('save_health_metrics') }}" method="POST">
+                        <!-- Blood Pressure Section -->
+                        <div class="metric-section">
+                            <h2>Blood Pressure</h2>
+                            <div class="radio-container">
+                                <label>
+                                    <input type="radio" name="bp-monitor" value="yes" {% if health_metrics and health_metrics.bp_monitored %}checked{% endif %}> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="bp-monitor" value="no" {% if not health_metrics or not health_metrics.bp_monitored %}checked{% endif %}> No
+                                </label>
+                            </div>
+                            <div id="bp-inputs" class="metric-input" {% if health_metrics and health_metrics.bp_monitored %}style="display: block;"{% endif %}>
+                                <div>
+                                    <label for="systolic">Systolic (mmHg):</label>
+                                    <input type="number" id="systolic" name="systolic" min="70" max="250" value="{{ health_metrics.systolic if health_metrics else '' }}">
+                                </div>
+                                <div>
+                                    <label for="diastolic">Diastolic (mmHg):</label>
+                                    <input type="number" id="diastolic" name="diastolic" min="40" max="150" value="{{ health_metrics.diastolic if health_metrics else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Blood Sugar Section -->
+                        <div class="metric-section">
+                            <h2>Blood Sugar</h2>
+                            <div class="radio-container">
+                                <label>
+                                    <input type="radio" name="sugar-monitor" value="yes" {% if health_metrics and health_metrics.sugar_monitored %}checked{% endif %}> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="sugar-monitor" value="no" {% if not health_metrics or not health_metrics.sugar_monitored %}checked{% endif %}> No
+                                </label>
+                            </div>
+                            <div id="sugar-inputs" class="metric-input" {% if health_metrics and health_metrics.sugar_monitored %}style="display: block;"{% endif %}>
+                                <label for="blood-sugar">Blood Sugar (mg/dL):</label>
+                                <input type="number" id="blood-sugar" name="blood-sugar" min="50" max="300" value="{{ health_metrics.blood_sugar if health_metrics else '' }}">
+                            </div>
+                        </div>
+
+                        <!-- Temperature Section -->
+                        <div class="metric-section">
+                            <h2>Body Temperature</h2>
+                            <div class="radio-container">
+                                <label>
+                                    <input type="radio" name="temp-monitor" value="yes" {% if health_metrics and health_metrics.temp_monitored %}checked{% endif %}> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="temp-monitor" value="no" {% if not health_metrics or not health_metrics.temp_monitored %}checked{% endif %}> No
+                                </label>
+                            </div>
+                            <div id="temp-inputs" class="metric-input" {% if health_metrics and health_metrics.temp_monitored %}style="display: block;"{% endif %}>
+                                <label for="body-temp">Temperature (°F):</label>
+                                <input type="number" id="body-temp" name="body-temp" min="95" max="106" step="0.1" value="{{ health_metrics.body_temp if health_metrics else '' }}">
+                            </div>
+                        </div>
+
+                        <!-- Glucose Section -->
+                        <div class="metric-section">
+                            <h2>Glucose Level</h2>
+                            <div class="radio-container">
+                                <label>
+                                    <input type="radio" name="glucose-monitor" value="yes" {% if health_metrics and health_metrics.glucose_monitored %}checked{% endif %}> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="glucose-monitor" value="no" {% if not health_metrics or not health_metrics.glucose_monitored %}checked{% endif %}> No
+                                </label>
+                            </div>
+                            <div id="glucose-inputs" class="metric-input" {% if health_metrics and health_metrics.glucose_monitored %}style="display: block;"{% endif %}>
+                                <label for="glucose-level">Glucose Level (mg/dL):</label>
+                                <input type="number" id="glucose-level" name="glucose-level" min="50" max="300" value="{{ health_metrics.glucose_level if health_metrics else '' }}">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">Save Health Metrics</button>
+                        <div id="error-message" class="error-message"></div>
+                    </form>
+
+                    <div id="prescription-section" class="prescription-section">
+                        <h2>Self-Monitoring Prescription</h2>
+                        <p id="prescription-details"></p>
+                    </div>
+                </div>
+            </div>
+            <div id="prescriptions" class="content-frame">
+                <!-- Patient's Video Consultation View for the prescriptions div -->
+                <div class="video-consultation-container">
+                    <div class="consultation-tabs">
+                        <button class="tab-btn active" data-tab="upcoming">Upcoming</button>
+                        <button class="tab-btn" data-tab="past">Past Consultations</button>
+                    </div>
+                    
+                    <div id="upcoming-consultations" class="tab-content active">
+                        <div class="section-title">
+                            <h3>Upcoming Video Consultations</h3>
+                        </div>
+                        <div class="consultation-cards">
+                            {% if upcoming_appointments %}
+                                {% for appointment in upcoming_appointments %}
+                                    <div class="consultation-card">
+                                        <div class="doctor-info">
+                                            <div class="doctor-avatar">
+                                                <i class="fas fa-user-md"></i>
+                                            </div>
+                                            <div class="doctor-details">
+                                                <h4>Dr. {{ appointment.doctor_name }}</h4>
+                                                <p>{{ appointment.specialty }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="appointment-info">
+                                            <div class="info-item">
+                                                <i class="far fa-calendar"></i>
+                                                <span>{{ appointment.formatted_date }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <i class="far fa-clock"></i>
+                                                <span>{{ appointment.formatted_time }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="consultation-actions">
+                                            {% if appointment.is_joinable %}
+                                                <a href="{{ url_for('video_room', appointment_id=appointment.id) }}" class="btn join-btn">
+                                                    <i class="fas fa-video"></i> Join Now
+                                                </a>
+                                            {% else %}
+                                                <button class="btn join-btn disabled" disabled>
+                                                    <i class="fas fa-video"></i> Join ({{ appointment.minutes_until }} min)
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div id="past-consultations" class="tab-content">
+                        <div class="section-title">
+                            <h3>Past Video Consultations</h3>
+                        </div>
+                        <div class="consultation-cards">
+                            {% if past_appointments %}
+                                {% for appointment in past_appointments %}
+                                    <div class="consultation-card">
+                                        <div class="doctor-info">
+                                            <div class="doctor-avatar">
+                                                <i class="fas fa-user-md"></i>
+                                            </div>
+                                            <div class="doctor-details">
+                                                <h4>Dr. {{ appointment.doctor_name }}</h4>
+                                                <p>{{ appointment.specialty }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="appointment-info">
+                                            <div class="info-item">
+                                                <i class="far fa-calendar"></i>
+                                                <span>{{ appointment.formatted_date }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <i class="far fa-clock"></i>
+                                                <span>{{ appointment.formatted_time }}</span>
+                                            </div>
+                                            <div class="appointment-status {{ appointment.status }}">
+                                                <span>{{ appointment.status|title }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="consultation-actions">
+                                            {% if appointment.has_prescription %}
+                                                <button class="btn view-prescription-btn" data-appointment-id="{{ appointment.id }}">
+                                                    <i class="fas fa-prescription"></i> View Prescription
+                                                </button>
+                                            {% endif %}
+                                            <button class="btn view-chat-btn" data-appointment-id="{{ appointment.id }}">
+                                                <i class="fas fa-comments"></i> View Chat History
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="no-appointments">
+                                    <i class="far fa-calendar-times"></i>
+                                    <p>You don't have any past video consultations.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Prescription Modal -->
+                    <div id="prescription-modal" class="modal">
+                        <div class="modal-content">
+                            <span class="close-modal">&times;</span>
+                            <h3>Prescription</h3>
+                            <div id="prescription-content">
+                                <!-- Prescription content will be loaded here -->
+                            </div>
+                            <div class="modal-actions">
+                                <button id="print-prescription" class="btn print-btn">
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat History Modal -->
+                    <div id="chat-modal" class="modal">
+                        <div class="modal-content">
+                            <span class="close-modal">&times;</span>
+                            <h3>Consultation Chat History</h3>
+                            <div id="chat-history-content">
+                                <!-- Chat history will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="consultation" class="content-frame">
+                <div class="consultation-container1">
+                    <h2>Doctor Schedule and Availability</h2>
+                    
+                    <!-- Search and Filter Section -->
+                    <div class="search-filter-section">
+                        <div class="search-box">
+                            <input type="text" id="doctorSearch" placeholder="Search doctors by name or specialty...">
+                            <i class="fas fa-search search-icon"></i>
+                        </div>
+                        <div class="filter-box">
+                            <select id="specialtyFilter">
+                                <option value="">All Specialties</option>
+                                {% for specialty in specialties %}
+                                    <option value="{{ specialty }}">{{ specialty }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+            
+                    <!-- Doctors Grid -->
+                    <div class="doctors-grid">
+                        {% for doctor in verified_doctors %}
+                        <div class="doctor-card" data-specialty="{{ doctor.specialty }}">
+                            <div class="doctor-header">
+                                <div class="doctor-status {{ 'online' if doctor.is_online else 'offline' }}">
+                                    <span class="status-dot"></span>
+                                    {{ 'Online' if doctor.is_online else 'Offline' }}
+                                </div>
+                                <div class="doctor-rating">
+                                    <i class="fas fa-star"></i>
+                                    <span>{{ doctor.rating|default('New') }}</span>
+                                </div>
+                            </div>
+                            <div class="doctor-info">
+                                <h3>Dr. {{ doctor.name }}</h3>
+                                <p class="specialty">{{ doctor.specialty }}</p>
+                                <p class="qualification">{{ doctor.qualification }}</p>
+                                <p class="experience">{{ doctor.experience_years }} years of experience</p>
+                            </div>
+                            <div class="doctor-actions">
+                                <button class="view-schedule-btn"
+                                        data-doctor-id="{{ doctor.id }}"
+                                        data-doctor-name="{{ doctor.name }}"
+                                        data-doctor-status="{{ doctor.is_online }}"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#scheduleModal"
+                                        {% if not doctor.is_online %}disabled{% endif %}>
+                                    View Schedule
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+            
+                    <!-- No Results Message -->
+                    <div id="noResults" class="no-results" style="display: none;">
+                        <p>No doctors found matching your search criteria.</p>
+                    </div>
+            
+                    <!-- Schedule Modal -->
+                    <div class="modal fade" id="scheduleModal" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Available Appointments</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div id="selectedDoctorInfo"></div>
+                                    <div class="schedule-container">
+                                        <div id="dateNav" class="date-navigation">
+                                            <button id="prevWeek" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+                                            <span id="dateRange"></span>
+                                            <button id="nextWeek" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                                        </div>
+                                        <div class="week-schedule"></div>
+                                        <div class="schedule-slots"></div>
+                                    </div>
+                                    <div id="noSlots" class="no-slots" style="display: none;">
+                                        <p>No available slots for the selected period.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="billing" class="content-frame">
+                <!-- Billing content -->
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/flash_messages.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/billing.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/patient_video.js') }}"></script>
+    <!-- Add this to your HTML head section -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Add Bootstrap JS -->
+    <script>
+       document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const doctorSearch = document.getElementById('doctorSearch');
+    const specialtyFilter = document.getElementById('specialtyFilter');
+    const doctorCards = document.querySelectorAll('.doctor-card');
+    const scheduleModal = document.getElementById('scheduleModal');
+    const noResults = document.getElementById('noResults');
+    const selectedDoctorInfo = document.getElementById('selectedDoctorInfo');
+    const weekSchedule = scheduleModal.querySelector('.week-schedule');
+    const scheduleSlots = scheduleModal.querySelector('.schedule-slots');
+    const noSlots = document.getElementById('noSlots');
+    const dateRange = document.getElementById('dateRange');
+    const prevWeekBtn = document.getElementById('prevWeek');
+    const nextWeekBtn = document.getElementById('nextWeek');
+
+    let currentWeekStart = new Date();
+    currentWeekStart.setHours(0, 0, 0, 0);
+    let currentDoctorId = null;
+
+    // Search and filter functionality
+    function filterDoctors() {
+        const searchTerm = doctorSearch.value.toLowerCase();
+        const selectedSpecialty = specialtyFilter.value;
+        let visibleCount = 0;
+
+        doctorCards.forEach(card => {
+            const doctorName = card.querySelector('h3').textContent.toLowerCase();
+            const specialty = card.dataset.specialty;
+            const matchesSearch = doctorName.includes(searchTerm);
+            const matchesSpecialty = !selectedSpecialty || specialty === selectedSpecialty;
+            
+            if (matchesSearch && matchesSpecialty) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+
+    doctorSearch.addEventListener('input', filterDoctors);
+    specialtyFilter.addEventListener('change', filterDoctors);
+
+    // Date navigation
+    function updateDateRange() {
+        const weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        dateRange.textContent = `${formatDate(currentWeekStart)} - ${formatDate(weekEnd)}`;
+    }
+
+    function formatDate(date) {
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'UTC'
+        });
+    }
+
+    prevWeekBtn.addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+        updateDateRange();
+        if (currentDoctorId) fetchDoctorSchedule(currentDoctorId);
+    });
+
+    nextWeekBtn.addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+        updateDateRange();
+        if (currentDoctorId) fetchDoctorSchedule(currentDoctorId);
+    });
+
+    // Schedule viewing functionality
+    document.querySelectorAll('.view-schedule-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.classList.contains('disabled')) {
+                return;
+            }
+            
+            currentDoctorId = this.dataset.doctorId;
+            const doctorName = this.dataset.doctorName;
+            
+            selectedDoctorInfo.innerHTML = `<h4>Dr. ${doctorName}'s Available Slots</h4>`;
+            updateDateRange();
+            fetchDoctorSchedule(currentDoctorId);
+        });
+    });
+
+    async function fetchDoctorSchedule(doctorId) {
+    try {
+        weekSchedule.innerHTML = '<div class="loading">Loading schedule...</div>';
+        scheduleSlots.innerHTML = '';
+        noSlots.style.display = 'none';
+
+        const utcDate = currentWeekStart.toISOString();
+        const response = await fetch(`/api/doctor-schedule/${doctorId}?start_date=${utcDate}`);
+        
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch schedule');
+        }
+        
+        const scheduleData = await response.json();
+        
+        // Get user's pending appointments for this doctor
+        const pendingResponse = await fetch(`/api/pending-appointments/${doctorId}`);
+        let pendingAppointments = [];
+        
+        if (pendingResponse.ok) {
+            const pendingData = await pendingResponse.json();
+            pendingAppointments = pendingData.appointments || [];
+        }
+        
+        displaySchedule(scheduleData, pendingAppointments);
+    } catch (error) {
+        console.error('Error:', error);
+        weekSchedule.innerHTML = `<div class="error">Failed to load schedule</div>`;
+    }
+}
+
+function displaySchedule(scheduleData, pendingAppointments = []) {
+    weekSchedule.innerHTML = '';
+    scheduleSlots.innerHTML = '';
+
+    if (scheduleData.length === 0) {
+        noSlots.style.display = 'block';
+        return;
+    }
+
+    // Mark slots that have pending appointments
+    scheduleData = scheduleData.map(slot => {
+        // Check if this slot has a pending appointment
+        const isPending = pendingAppointments.some(app => 
+            app.availability_id === slot.id
+        );
+        
+        if (isPending) {
+            return {
+                ...slot,
+                is_available: false,
+                is_pending: true
+            };
+        }
+        
+        return slot;
+    });
+
+    // Group slots by date
+    const slotsByDate = groupSlotsByDate(scheduleData);
+    
+    // Create date headers
+    const dateHeaders = createDateHeaders(slotsByDate);
+    weekSchedule.appendChild(dateHeaders);
+
+    // Create time slots
+    const slotsContainer = createTimeSlots(slotsByDate);
+    scheduleSlots.appendChild(slotsContainer);
+}
+
+function groupSlotsByDate(scheduleData) {
+    return scheduleData.reduce((acc, slot) => {
+        const date = slot.schedule_date;
+        if (!acc[date]) acc[date] = [];
+        acc[date].push(slot);
+        return acc;
+    }, {});
+}
+
+function createDateHeaders(slotsByDate) {
+    const headerContainer = document.createElement('div');
+    headerContainer.className = 'date-headers';
+
+    Object.keys(slotsByDate).forEach(date => {
+        // Create date object in UTC
+        const dateObj = new Date(date + 'T00:00:00Z');
+        const header = document.createElement('div');
+        header.className = 'date-header';
+        header.innerHTML = `
+            <div class="day">${dateObj.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</div>
+            <div class="date">${dateObj.getUTCDate()}</div>
+            <div class="month">${dateObj.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</div>
+        `;
+        headerContainer.appendChild(header);
+    });
+
+    return headerContainer;
+}
+
+function createTimeSlots(slotsByDate) {
+    const slotsContainer = document.createElement('div');
+    slotsContainer.className = 'time-slots-container';
+
+    Object.entries(slotsByDate).forEach(([date, slots]) => {
+        const daySlots = document.createElement('div');
+        daySlots.className = 'day-slots';
+
+        slots.forEach(slot => {
+            const slotElement = document.createElement('div');
+            slotElement.className = `time-slot ${slot.is_available ? 'available' : 'booked'} time-slot-${slot.id}`;
+            
+            if (slot.is_pending) {
+                slotElement.innerHTML = `
+                    <span class="time">${slot.start_time} - ${slot.end_time}</span>
+                    <span class="pending-badge">Waiting for approval...</span>
+                `;
+            } else if (slot.is_available) {
+                slotElement.innerHTML = `
+                    <span class="time">${slot.start_time} - ${slot.end_time}</span>
+                    <button class="book-slot-btn" 
+                            onclick="bookAppointment(${slot.id})">
+                        Book
+                    </button>
+                `;
+            } else {
+                slotElement.innerHTML = `
+                    <span class="time">${slot.start_time} - ${slot.end_time}</span>
+                    <span class="booked-badge">Booked</span>
+                `;
+            }
+            
+            daySlots.appendChild(slotElement);
+        });
+
+        slotsContainer.appendChild(daySlots);
+    });
+
+    return slotsContainer;
+}
+
+// Function to poll for appointment status changes
+function startPollingForAppointmentStatus(appointmentId, initialStatus) {
+    // Initial status could be 'pending_approval'
+    let currentStatus = initialStatus;
+    
+    const checkStatus = async () => {
+        try {
+            const response = await fetch(`/api/appointment-status/${appointmentId}`);
+            if (!response.ok) throw new Error('Failed to check appointment status');
+            
+            const data = await response.json();
+            
+            // If status has changed, update the UI
+            if (data.status !== currentStatus) {
+                currentStatus = data.status;
+                
+                // Find the slot element
+                const slotElement = document.querySelector(`.time-slot-${data.availability_id}`);
+                
+                if (slotElement) {
+                    if (currentStatus === 'scheduled') {
+                        slotElement.querySelector('.pending-badge').textContent = 'Confirmed';
+                        slotElement.querySelector('.pending-badge').className = 'booked-badge';
+                        alert('Your appointment has been confirmed!');
+                        // Stop polling once we know it's approved
+                        return;
+                    } else if (currentStatus === 'cancelled') {
+                        // Doctor rejected the appointment
+                        slotElement.innerHTML = `
+                            <span class="time">${slotElement.querySelector('.time').textContent}</span>
+                            <button class="book-slot-btn" onclick="bookAppointment(${data.availability_id})">
+                                Book
+                            </button>
+                        `;
+                        alert('The doctor has declined your appointment request.');
+                        return;
+                    }
+                }
+            }
+            
+            // Continue polling if status is still pending
+            if (currentStatus === 'pending_approval') {
+                setTimeout(checkStatus, 10000); // Check every 10 seconds
+            }
+        } catch (error) {
+            console.error('Error checking appointment status:', error);
+            // Continue polling despite errors
+            setTimeout(checkStatus, 10000);
+        }
+    };
+    
+    // Start the polling
+    checkStatus();
+}
+
+// Booking functionality
+window.bookAppointment = async function(availabilityId) {
+    try {
+        if (!confirm('Would you like to book this appointment?')) return;
+
+        // Find the button that was clicked and update its state
+        const bookBtn = document.querySelector(`button.book-slot-btn[onclick="bookAppointment(${availabilityId})"]`);
+        if (bookBtn) {
+            bookBtn.disabled = true;
+            bookBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Booking...';
+        }
+
+        // Include the doctor_id from the currentDoctorId variable
+        const response = await fetch('/api/book-appointment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                availability_id: availabilityId,
+                doctor_id: currentDoctorId
+            })
+        });
+
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Booking failed');
+        }
+
+        // Update the UI to show pending status
+        const slotElement = bookBtn.closest('.time-slot');
+        slotElement.className = 'time-slot booked time-slot-' + availabilityId;
+        slotElement.innerHTML = `
+            <span class="time">${slotElement.querySelector('.time').textContent}</span>
+            <span class="pending-badge">Waiting for approval...</span>
+        `;
+        
+        alert('Appointment request sent! Waiting for doctor approval.');
+        
+        // Start polling for appointment status
+        if (data.appointmentId) {
+            startPollingForAppointmentStatus(data.appointmentId, 'pending_approval');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert(error.message || 'Failed to book appointment. Please try again.');
+        
+        // Reset the button if there was an error
+        const bookBtn = document.querySelector(`button.book-slot-btn[onclick="bookAppointment(${availabilityId})"]`);
+        if (bookBtn) {
+            bookBtn.disabled = false;
+            bookBtn.textContent = 'Book';
+        }
+    }
+};
+
+// Function to cancel appointment
+window.cancelAppointment = async function(appointmentId) {
+    try {
+        if (!confirm('Are you sure you want to cancel this appointment?')) return;
+        
+        const response = await fetch('/api/cancel-appointment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ appointment_id: appointmentId })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Cancellation failed');
+        }
+        
+        alert('Appointment cancelled successfully.');
+        
+        // Refresh the schedule
+        if (currentDoctorId) fetchDoctorSchedule(currentDoctorId);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert(error.message || 'Failed to cancel appointment. Please try again.');
+    }
+};
+
+});
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

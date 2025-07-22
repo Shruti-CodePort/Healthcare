@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Consultation - HealthCare</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .video-room-container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 100px);
+        }
+        
+        .video-room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+        
+        .video-room-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .detail-item {
+            background-color: #f8f9fa;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .video-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            position: relative;
+            min-height: 500px;
+        }
+        
+        #videoRoot {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .video-controls {
+            display: flex;
+            justify-content: center;
+            padding: 15px 0;
+            gap: 15px;
+        }
+        
+        .control-btn {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-end-call {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-end-call:hover {
+            background-color: #c82333;
+        }
+        
+        .waiting-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        @media (max-width: 768px) {
+            .video-room-container {
+                height: calc(100vh - 80px);
+                padding: 15px;
+            }
+            
+            .video-area {
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>Video Consultation</h1>
+            <a href="{{ url_for('patient_video_consultation' if not is_doctor else 'doctor_video_consultation') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left"></i> Back to Appointments
+            </a>
+        </div>
+        
+        <div class="video-room-container" id="video-room-container">
+            <div class="video-room-header">
+                <h2>Video Consultation</h2>
+                <div class="video-room-details">
+                    <div class="detail-item" id="doctor-name">
+                        {{ 'Doctor' if is_doctor else 'Patient' }}: {{ 'You' if is_doctor else appointment.doctor_name }}
+                    </div>
+                    <div class="detail-item" id="patient-name">
+                        Patient: {{ 'You' if not is_doctor else appointment.patient_name }}
+                    </div>
+                    <div class="detail-item" id="appointment-date">
+                        Date: {{ appointment.formatted_date }}
+                    </div>
+                    <div class="detail-item" id="appointment-time">
+                        Time: {{ appointment.formatted_time }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="video-area">
+                <div id="videoRoot"></div>
+                <div class="waiting-message" id="waitingMessage">
+                    <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
+                    <h3>Setting up your video call</h3>
+                    <p>Please wait a moment while we connect you</p>
+                </div>
+            </div>
+            
+            <div class="video-controls">
+                <button class="control-btn btn-end-call" onclick="endVideoCall()">
+                    <i class="fas fa-phone-slash"></i> End Call
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@zegocloud/zego-uikit-prebuilt@1.8.15/zego-uikit-prebuilt.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initVideoCall("{{ room_id }}", "{{ user_name }}", {{ appointment.id }});
+        });
+        
+        // Initialize video call with Zego
+        async function initVideoCall(roomID, userName, appointmentId) {
+            try {
+                console.log("Starting video call in room:", roomID);
+                
+                if (typeof ZegoUIKitPrebuilt === 'undefined') {
+                    console.log("Waiting for Zego script to load...");
+                    setTimeout(() => initVideoCall(roomID, userName, appointmentId), 1000);
+                    return;
+                }
+                
+                // Hide waiting message once video loads
+                document.getElementById('waitingMessage').style.display = 'none';
+                
+                // Generate a random user ID
+                const userID = Math.floor(Math.random() * 10000).toString();
+                
+                // Your Zego app credentials (these should match the doctor side)
+                const appID = 476261834;
+                const serverSecret = "7e204a99d4e55c4ef17e9622a9223f04";
+                
+                // Generate token
+                const timestamp = Math.floor(Date.now() / 1000);
+                const expired = timestamp + 3600; // 1 hour
+                
+                const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+                    appID,
+                    serverSecret,
+                    roomID,
+                    userID,
+                    userName,
+                    expired
+                );
+                
+                // Create Zego instance
+                const zp = ZegoUIKitPrebuilt.create(kitToken);
+                
+                // Join the room
+                window.zegoInstance = await zp.joinRoom({
+                    container: document.querySelector("#videoRoot"),
+                    scenario: {
+                        mode: ZegoUIKitPrebuilt.OneONoneCall
+                    },
+                    showScreenSharingButton: true,
+                    showUserList: true,
+                    maxUsers: 2,
+                    layout: "Grid",
+                    showTextChat: true,
+                    turnOnCameraWhenJoining: true,
+                    turnOnMicrophoneWhenJoining: true,
+                    showMyMicrophoneToggleButton: true,
+                    showMyCameraToggleButton: true,
+                    onJoinRoom: () => {
+                        console.log("Successfully joined room:", roomID);
+                    }
+                });
+                
+                // Store appointment ID for end call function
+                window.currentAppointmentId = appointmentId;
+                
+            } catch (error) {
+                console.error("Error initializing video call:", error);
+                document.getElementById('videoRoot').innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: red;">
+                        <h2>Failed to join call</h2>
+                        <p>${error.message}</p>
+                        <button onclick="location.reload()" style="padding: 10px; margin-top: 15px;">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // End video call
+        function endVideoCall() {
+            const appointmentId = window.currentAppointmentId;
+            if (!appointmentId) {
+                console.error("No appointment ID found");
+                return;
+            }
+            
+            fetch(`/api/end-session/${appointmentId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Session ended:', data);
+                try {
+                    if (window.zegoInstance) {
+                        window.zegoInstance.destroy();
+                    }
+                } catch (error) {
+                    console.error("Error destroying Zego instance:", error);
+                }
+                
+                // Redirect back to appointments page
+                window.location.href = '{{ url_for("patient_video_consultation" if not is_doctor else "doctor_video_consultation") }}';
+            })
+            .catch(error => {
+                console.error('Error ending session:', error);
+                // Redirect back to appointments page anyway
+                window.location.href = '{{ url_for("patient_video_consultation" if not is_doctor else "doctor_video_consultation") }}';
+            });
+        }
+    </script>
+</body>
+</html>

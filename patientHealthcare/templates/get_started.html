@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Started - Health Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/get_started.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="{{ url_for('index') }}" class="logo">Health Care</a>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('get_started') }}" class="active">Get Started</a></li>
+            <li><a href="{{ url_for('login') }}">Login</a></li>
+        </ul>
+    </nav>
+
+    <main class="get-started">
+        <div class="content-container">
+            <h1>Get Started with Health Care</h1>
+
+
+            <section class="steps">
+                <h2>How It Works</h2>
+                <div class="steps-grid">
+                    <div class="step-card">
+                        <i class="fas fa-user-plus"></i>
+                        <h3>1. Create Your Profile</h3>
+                        <p>Start by building your comprehensive health profile. This will help us understand your background, health metrics, and goals.</p>
+                    </div>
+                    <div class="step-card">
+                        <i class="fas fa-heartbeat"></i>
+                        <h3>2. Monitor Your Health</h3>
+                        <p>Track your vital signs and health metrics using our intuitive tools to ensure your health is on the right path.</p>
+                    </div>
+                    <div class="step-card">
+                        <i class="fas fa-user-md"></i>
+                        <h3>3. Connect with Providers</h3>
+                        <p>Access our network of healthcare providers for consultations and personalized health advice.</p>
+                    </div>
+                    <div class="step-card">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>4. Continuous Improvement</h3>
+                        <p>Update your profile and health metrics as you progress on your health journey.</p>
+                    </div>
+                    <div class="step-card">
+                        <i class="fas fa-calendar-check"></i>
+                        <h3>5. Schedule Regular Check-ups</h3>
+                        <p>Set up reminders for regular health check-ups and receive notifications for upcoming appointments and health screenings.</p>
+                    </div>
+                    <div class="step-card">
+                        <i class="fas fa-file-medical"></i>
+                        <h3>6. Access Health Records</h3>
+                        <p>Securely store and access your medical records, test results, and health history all in one convenient location.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="cta">
+                <h2>Ready to Start?</h2>
+                <p>Take the first step towards better health management with our comprehensive platform.</p>
+                <a href="{{ url_for('signup') }}" class="btn btn-primary">Create Your Profile</a>
+            </section>
+        </div>
+    </main>
+
+
+
+    <footer>
+        <p>&copy; 2024 Health Care. All rights reserved.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/get_started.js') }}"></script>
+</body>
+</html>

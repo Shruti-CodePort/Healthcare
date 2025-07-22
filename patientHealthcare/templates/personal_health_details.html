@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Health Details - Health Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/personal_health_details.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash_messages.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <main class="personal-health-details">
+        <div class="content-container">
+            <h1>Patient Health Details</h1>
+            <div id="flash-message-container" class="flash-container">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                <span class="flash-content">{{ message }}</span>
+                                <button class="flash-close">&times;</button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+            
+            <form method="POST" action="{{ url_for('personal_health_details') }}" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="patientName">Patient Name</label>
+                    <input type="text" id="patientName" name="patientName" 
+                           value="{{ health_details.patient_name if health_details else '' }}"
+                           placeholder="e.g. Devansh Gohil" pattern="[A-Za-z\s]+" maxlength="50" required>
+                </div>
+                <div class="form-group">
+                    <label for="dob">Date of Birth</label>
+                    <input type="date" id="dob" name="dob" 
+                           value="{{ health_details.date_of_birth.strftime('%Y-%m-%d') if health_details and health_details.date_of_birth else '' }}"
+                           data-date-format="DD/MM/YYYY"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label for="contactNo">Contact Number</label>
+                    <input type="text" id="contactNo" name="contactNo" 
+                            value="{{ health_details.contact_number if health_details else '' }}"
+                            placeholder="10-digit number" pattern="\d{10}" maxlength="10" required>
+                </div>
+                
+                <div class="tabs">
+                    <button type="button" class="tab-btn active" data-tab="previousIllnesses">
+                        <i class="fas fa-user"></i> Previous illness
+                    </button>
+                    <button type="button" class="tab-btn" data-tab="currentMedications">
+                        <i class="fas fa-notes-medical"></i> Current Medications
+                    </button>
+                    <button type="button" class="tab-btn" data-tab="knownAllergies">
+                        <i class="fas fa-pills"></i> Known Allergies
+                    </button>
+                    <button type="button" class="tab-btn" data-tab="previousSurgeries">
+                        <i class="fas fa-file-medical"></i> Previous Surgeries
+                    </button>
+                </div>
+
+                <div id="previousIllnesses" class="tab-content active">
+                    <div class="form-group">
+                        <label>Do you have any previous illnesses?</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="hasPreviousIllnesses" value="yes"
+                                        {{ 'checked' if health_details and health_details.previous_illnesses }}> Yes
+                            </label>
+                            <label>
+                                <input type="radio" name="hasPreviousIllnesses" value="no"
+                                        {{ 'checked' if health_details and not health_details.previous_illnesses }}> No
+                            </label>
+                        </div>
+                        <textarea id="previousIllness" name="previousIllness" 
+                                placeholder="Details of previous illnesses">{{ health_details.previous_illnesses if health_details else '' }}</textarea>
+                    </div>
+                </div>
+
+                <div id="currentMedications" class="tab-content">
+                    <div class="form-group">
+                        <label>Are you currently taking any medications?</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="hasCurrentMedications" value="yes"
+                                        {{ 'checked' if health_details and health_details.current_medications }}> Yes
+                            </label>
+                            <label>
+                                <input type="radio" name="hasCurrentMedications" value="no"
+                                        {{ 'checked' if health_details and not health_details.current_medications }}> No
+                            </label>
+                        </div>
+                        <textarea id="currentMedications" name="currentMedications" 
+                                placeholder="Details of current medications">{{ health_details.current_medications if health_details else '' }}</textarea>
+                    </div>
+                </div>
+
+                <div id="knownAllergies" class="tab-content">
+                    <div class="form-group">
+                        <label>Do you have any known allergies?</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="hasKnownAllergies" value="yes"
+                                        {{ 'checked' if health_details and health_details.known_allergies }}> Yes
+                            </label>
+                            <label>
+                                <input type="radio" name="hasKnownAllergies" value="no"
+                                        {{ 'checked' if health_details and not health_details.known_allergies }}> No
+                            </label>
+                        </div>
+                        <textarea id="knownAllergies" name="knownAllergies" 
+                                placeholder="Details of known allergies">{{ health_details.known_allergies if health_details else '' }}</textarea>
+                    </div>
+                </div>
+                <div id="previousSurgeries" class="tab-content">
+                    <div class="form-group">
+                        <label>Have you had any previous surgeries?</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="hasPreviousSurgeries" value="yes" id="surgeryYes"
+                                        {{ 'checked' if health_details and health_details.previous_surgeries }}> Yes
+                            </label>
+                            <label>
+                                <input type="radio" name="hasPreviousSurgeries" value="no" id="surgeryNo"
+                                        {{ 'checked' if health_details and not health_details.previous_surgeries }}> No
+                            </label>
+                        </div>
+                        
+                        <div id="surgeryDetailsSection" class="surgery-details" 
+                            style="display: {{ 'block' if health_details and health_details.previous_surgeries else 'none' }};">
+                            
+                            <textarea id="previousSurgeries" name="previousSurgeries" 
+                                    placeholder="Details of previous surgeries">{{ health_details.previous_surgeries if health_details else '' }}</textarea>
+                            
+                            <!-- Updated File Upload Section -->
+                            <div class="file-upload-section">
+                                <label for="surgeryFiles">Upload Surgery Document (PDF only)</label>
+                                <div class="file-input-container">
+                                    <input type="file" id="surgeryFiles" name="surgeryFiles" accept=".pdf">
+                                    <div class="file-input-help">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>Maximum file size: 16MB</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="file-list">
+                                    {% if uploaded_documents %}
+                                        <h4>Uploaded Document</h4>
+                                        <ul>
+                                            {% for doc in uploaded_documents %}
+                                                <li>
+                                                    <div class="file-info">
+                                                        <i class="fas fa-file-pdf"></i>
+                                                        <span class="file-name">{{ doc.file_name }}</span>
+                                                    </div>
+                                                    <div class="file-meta">
+                                                        <span class="upload-date">
+                                                            <i class="fas fa-calendar-alt"></i>
+                                                            {{ doc.uploaded_at.strftime('%Y-%m-%d') }}
+                                                        </span>
+                                                    </div>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="no-files-message">No document uploaded yet</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Health Details
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Health Care. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/personal_health_details.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/flash_messages.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Format the displayed date
+            const dobInput = document.getElementById('dob');
+            
+            if (dobInput) {
+                // Change the date format display
+                dobInput.addEventListener('change', function(e) {
+                    const date = new Date(this.value);
+                    const formattedDate = date.toLocaleDateString('en-GB'); // This will format as DD/MM/YYYY
+                    this.setAttribute('data-display', formattedDate);
+                });
+                
+                // If there's an initial value, format it
+                if (dobInput.value) {
+                    const date = new Date(dobInput.value);
+                    dobInput.setAttribute('data-display', date.toLocaleDateString('en-GB'));
+                }
+            }
+        });
+        </script>
+</body>
+</html>
